@@ -64,6 +64,7 @@ La diferencia de bib_exprés: es una herramienta de línea de comandos y librer�
 
 - Aceptar como entrada un ID/URL de arXiv, un título en texto libre (con confirmación), o subir un PDF y extraer el DOI/título automáticamente.
 - Filtrar por tipo de documento o estado de acceso abierto — los datos ya se guardan, pero v1 no filtra por ellos.
+- Hacer una interfaz de usuario más "beginner friendly"
 - Si algún día se expone como servicio para terceros (no solo CLI/librería local), añadir autenticación/autorización — hoy no aplica porque todo corre en local.
 
 ## Preguntas abiertas
