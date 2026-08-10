@@ -8,6 +8,7 @@ dependencies = ["requests>=2.31", "python-dotenv>=1.0", "pypdf>=5.0", "pywebview
 
 [project.optional-dependencies]
 dev = ["pytest", "pip-audit"]
+packaging = ["pyinstaller>=6.0"]
 
 [project.scripts]
 bib-expres = "bib_expres.cli:main"
