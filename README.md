@@ -1,8 +1,29 @@
 # bib_exprés
 
-Herramienta de snowballing bibliográfico: a partir de un paper padre, expande generaciones de referencias/citas/artículos similares y consolida una bibliografía filtrada por relevancia.
+Herramienta de snowballing bibliográfico: a partir de un paper padre (DOI), expande generaciones de referencias, citas y artículos similares, y consolida una bibliografía filtrada por relevancia.
 
-**Estado: en construcción.** Todavía no hay lógica de negocio — esto es solo el scaffold inicial del proyecto.
+**Estado: arquitectura definida, implementación en curso.**
+
+## Cómo funciona
+
+```
+DOI de entrada
+  -> resolucion (CrossRef + OpenAlex)          -> paper raiz
+  -> expansion (cola por prioridad)
+       -> OpenAlex: referencias + citas
+       -> Semantic Scholar: articulos similares (modo opcional)
+       -> puntuacion de relevancia + deduplicacion en cada candidato
+     ... hasta agotar generaciones, tope de articulos, o el grafo
+  -> exportacion -> fichero .bib
+```
+
+Todos los parámetros de la búsqueda son configurables (generaciones, tope total de artículos, tope por artículo, modos de expansión activos, pesos de relevancia) — nada queda fijo en el código.
+
+## Fuentes de datos
+
+- **OpenAlex** (primaria) — referencias, citas, temas/conceptos. Sin API key.
+- **Semantic Scholar** (complemento) — artículos similares. Requiere API key gratuita.
+- **CrossRef** — resolución y verificación de DOI.
 
 ## Instalación (modo desarrollo)
 
@@ -10,14 +31,16 @@ Herramienta de snowballing bibliográfico: a partir de un paper padre, expande g
 pip install -e ".[dev]"
 ```
 
+Copia `.env.example` a `.env` y rellena tu email de contacto y, opcionalmente, tu API key de Semantic Scholar.
+
 ## Uso
 
 ```bash
 bib-expres --version
 ```
 
-(sin funcionalidad real todavía — la CLI es un placeholder)
+(el pipeline completo todavía se está implementando)
 
-## Gestión del proyecto
+## Licencia
 
-Este proyecto se gestiona con Histos — ver `project.canvas` en Obsidian para el estado de las tareas.
+MIT — ver [LICENSE](LICENSE).
