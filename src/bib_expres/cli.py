@@ -39,6 +39,10 @@ def _parse_modes(raw: str) -> set[ExpansionMode]:
     return modes
 
 
+def _parse_doc_types(raw: str) -> set[str]:
+    return {t.strip() for t in raw.split(",") if t.strip()}
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="bib-expres",
@@ -73,6 +77,16 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--weight-citations", type=float, default=0.2, help="Peso de las citas")
     parser.add_argument("--weight-recency", type=float, default=0.1, help="Peso de la recencia")
+    parser.add_argument(
+        "--doc-types",
+        type=_parse_doc_types,
+        default=None,
+        help="Tipos de documento permitidos, separados por coma (p.ej. article,preprint); "
+        "por defecto, todos",
+    )
+    parser.add_argument(
+        "--open-access-only", action="store_true", help="Solo incluir articulos de acceso abierto"
+    )
     parser.add_argument("--output", default=DEFAULT_OUTPUT, help="Fichero de salida")
     parser.add_argument(
         "--format",
@@ -124,6 +138,8 @@ def main(argv: list[str] | None = None) -> int:
                 recency=args.weight_recency,
             ),
             relevance_threshold=args.relevance_threshold,
+            allowed_doc_types=args.doc_types,
+            require_open_access=args.open_access_only,
         )
     except ValueError as exc:
         print(f"Error de configuracion: {exc}", file=sys.stderr)

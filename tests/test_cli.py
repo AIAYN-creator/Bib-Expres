@@ -5,7 +5,7 @@ import argparse
 
 import pytest
 
-from bib_expres.cli import _confirm_title_candidate, _parse_modes
+from bib_expres.cli import _build_parser, _confirm_title_candidate, _parse_doc_types, _parse_modes
 from bib_expres.config import ExpansionMode
 from bib_expres.models import DiscoveryMode, Paper
 
@@ -96,3 +96,27 @@ def test_parse_modes_rejects_unknown_mode():
 def test_parse_modes_rejects_empty():
     with pytest.raises(argparse.ArgumentTypeError):
         _parse_modes("")
+
+
+def test_parse_doc_types_splits_and_strips():
+    assert _parse_doc_types(" article, preprint ") == {"article", "preprint"}
+
+
+def test_parse_doc_types_empty_string():
+    assert _parse_doc_types("") == set()
+
+
+def test_doc_types_and_open_access_flags_reach_search_config():
+    parser = _build_parser()
+    args = parser.parse_args(
+        ["--doi", "10.1/x", "--doc-types", "article,dataset", "--open-access-only"]
+    )
+    assert args.doc_types == {"article", "dataset"}
+    assert args.open_access_only is True
+
+
+def test_doc_types_and_open_access_default_to_no_filter():
+    parser = _build_parser()
+    args = parser.parse_args(["--doi", "10.1/x"])
+    assert args.doc_types is None
+    assert args.open_access_only is False
