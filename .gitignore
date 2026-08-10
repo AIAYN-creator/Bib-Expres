@@ -1,0 +1,20 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+.env
+.DS_Store
+Thumbs.db
+
+# Vault de Histos / gestion del proyecto -- vive en local, no en el repo publicado
+.obsidian/
+.claude/
+aprobados/
+content/
+propuestas/
+project.canvas
+AGENTS.md
+CLAUDE.md
