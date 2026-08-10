@@ -3,6 +3,8 @@ from __future__ import annotations
 import argparse
 import sys
 
+from dotenv import load_dotenv
+
 from .config import ExpansionMode, InstallConfig, RelevanceWeights, SearchConfig
 from .expansion import expand
 from .export import write_bibtex
@@ -64,6 +66,8 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    load_dotenv()
+
     parser = _build_parser()
     args = parser.parse_args(argv)
 

@@ -1,6 +1,6 @@
 # Uso
 
-> El pipeline ya está conectado de principio a fin (DOI → expansión → BibTeX). Falta validarlo contra un caso real — ver el README para el estado actual del proyecto.
+> Validado de principio a fin contra un caso real — ver [docs/ejemplo.md](ejemplo.md).
 
 ## Uso básico
 
