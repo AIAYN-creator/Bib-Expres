@@ -141,3 +141,33 @@ details.advanced summary { cursor: pointer; color: var(--muted); font-size: 0.9r
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+#curation-counter { text-align: center; }
+
+#curation-card-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 0.5rem 0;
+}
+
+.curation-card {
+  width: 100%;
+  max-width: 480px;
+  min-height: 260px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.2rem 1.4rem;
+  background: white;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+.curation-card:active { cursor: grabbing; }
+.curation-card .curation-score { color: var(--muted); font-size: 0.8rem; margin-bottom: 0.4rem; }
+.curation-card .title { font-weight: 600; font-size: 1.05rem; margin-bottom: 0.3rem; }
+.curation-card .meta { color: var(--muted); font-size: 0.85rem; margin-bottom: 0.8rem; }
+.curation-card .abstract { font-size: 0.9rem; line-height: 1.4; }
+
+.curation-buttons { justify-content: center; }
+.curation-buttons button { min-width: 140px; }

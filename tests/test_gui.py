@@ -193,6 +193,30 @@ def test_api_export_unknown_format_errors(tmp_path):
     assert res["status"] == "error"
 
 
+def test_api_export_excludes_indices(tmp_path):
+    api = Api()
+    api._results = [
+        _paper(openalex_id="W1", title="Keep me"),
+        _paper(openalex_id="W2", title="Discard me"),
+        _paper(openalex_id="W3", title="Keep me too"),
+    ]
+    path = str(tmp_path / "out.bib")
+    res = api.export(path, "bibtex", excluded_indices=[1])
+    assert res["status"] == "ok"
+    assert res["count"] == 2
+    content = (tmp_path / "out.bib").read_text(encoding="utf-8")
+    assert "Discard me" not in content
+    assert "Keep me" in content
+    assert "Keep me too" in content
+
+
+def test_api_export_without_excluded_indices_keeps_everyone(tmp_path):
+    api = Api()
+    api._results = [_paper(openalex_id="W1"), _paper(openalex_id="W2")]
+    res = api.export(str(tmp_path / "out.bib"), "bibtex")
+    assert res["count"] == 2
+
+
 # -- Api.get_settings / save_settings ------------------------------------------
 
 

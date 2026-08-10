@@ -174,9 +174,12 @@
   // -- Pantalla 4: resultados --------------------------------------------------
 
   let lastResultsCount = 0;
+  let lastResultsPapers = [];
+  let currentExcludedIndices = [];
 
   function showResultsScreen(res) {
     lastResultsCount = res.count;
+    lastResultsPapers = res.papers;
     document.getElementById("results-count").textContent = `${res.count} artículos encontrados`;
     const list = document.getElementById("results-list");
     list.innerHTML = "";
@@ -196,12 +199,115 @@
     showScreen("screen-input");
   });
 
-  document.getElementById("export-btn").addEventListener("click", () => {
+  function openExportScreen() {
     setError("export-error", "");
     document.getElementById("export-success").classList.add("hidden");
     document.getElementById("export-path").value = "";
     showScreen("screen-export");
+  }
+
+  document.getElementById("export-btn").addEventListener("click", () => {
+    currentExcludedIndices = [];
+    openExportScreen();
   });
+
+  // -- Pantalla 4b: curacion tipo Tinder (opcional) ------------------------------
+
+  let curationPapers = [];
+  let curationIndex = 0;
+  let curationDiscarded = new Set();
+
+  function updateCurationCounter() {
+    const kept = curationIndex - curationDiscarded.size;
+    document.getElementById(
+      "curation-counter"
+    ).textContent = `Revisados ${curationIndex} / ${curationPapers.length} -- ${kept} guardados`;
+  }
+
+  function showCurationCard() {
+    if (curationIndex >= curationPapers.length) {
+      finishCuration();
+      return;
+    }
+    const paper = curationPapers[curationIndex];
+    const card = document.getElementById("curation-card");
+    card.style.transform = "";
+    card.querySelector(".curation-score").textContent =
+      paper.relevance_score != null
+        ? `Relevancia: ${paper.relevance_score.toFixed(2)}`
+        : "Relevancia: --";
+    card.querySelector(".title").textContent = paper.title;
+    card.querySelector(".meta").textContent = paperMeta(paper);
+    card.querySelector(".abstract").textContent = paper.abstract || "(sin abstract disponible)";
+    updateCurationCounter();
+  }
+
+  function decideCuration(keep) {
+    if (!keep) curationDiscarded.add(curationIndex);
+    curationIndex += 1;
+    showCurationCard();
+  }
+
+  function finishCuration() {
+    currentExcludedIndices = Array.from(curationDiscarded);
+    openExportScreen();
+  }
+
+  document.getElementById("curate-btn").addEventListener("click", () => {
+    curationPapers = lastResultsPapers;
+    curationIndex = 0;
+    curationDiscarded = new Set();
+    if (curationPapers.length === 0) {
+      openExportScreen();
+      return;
+    }
+    showCurationCard();
+    showScreen("screen-curation");
+  });
+
+  document
+    .getElementById("curation-discard-btn")
+    .addEventListener("click", () => decideCuration(false));
+  document
+    .getElementById("curation-keep-btn")
+    .addEventListener("click", () => decideCuration(true));
+  document.getElementById("curation-finish-btn").addEventListener("click", finishCuration);
+
+  document.addEventListener("keydown", (e) => {
+    if (screens["screen-curation"].classList.contains("hidden")) return;
+    if (e.key === "ArrowLeft") decideCuration(false);
+    if (e.key === "ArrowRight") decideCuration(true);
+  });
+
+  // arrastrar la tarjeta -- boton/teclado siguen siendo el mecanismo principal,
+  // esto es un anadido, no lo unico que funciona (ver diseno-curacion-articulos-v2)
+  (() => {
+    const card = document.getElementById("curation-card");
+    const DRAG_THRESHOLD = 120;
+    let startX = null;
+
+    card.addEventListener("pointerdown", (e) => {
+      startX = e.clientX;
+      card.setPointerCapture(e.pointerId);
+    });
+    card.addEventListener("pointermove", (e) => {
+      if (startX === null) return;
+      const dx = e.clientX - startX;
+      card.style.transform = `translateX(${dx}px) rotate(${dx / 20}deg)`;
+    });
+    card.addEventListener("pointerup", (e) => {
+      if (startX === null) return;
+      const dx = e.clientX - startX;
+      startX = null;
+      if (dx > DRAG_THRESHOLD) {
+        decideCuration(true);
+      } else if (dx < -DRAG_THRESHOLD) {
+        decideCuration(false);
+      } else {
+        card.style.transform = "";
+      }
+    });
+  })();
 
   // -- Pantalla 5: exportar -----------------------------------------------------
 
@@ -224,11 +330,11 @@
       return;
     }
     try {
-      const res = await window.pywebview.api.export(path, format);
+      const res = await window.pywebview.api.export(path, format, currentExcludedIndices);
       if (res.status === "ok") {
         setError("export-error", "");
         const ok = document.getElementById("export-success");
-        ok.textContent = `Guardado en ${res.path}`;
+        ok.textContent = `Guardado en ${res.path} (${res.count} artículos)`;
         ok.classList.remove("hidden");
       } else {
         setError("export-error", res.message || "No se ha podido exportar.");

@@ -19,6 +19,22 @@ def _strip_doi(value: str | None) -> str | None:
     return value.rsplit("doi.org/", 1)[-1]
 
 
+def _reconstruct_abstract(inverted_index: dict[str, list[int]] | None) -> str | None:
+    """OpenAlex no da el abstract como texto plano -- lo da como indice
+    invertido (palabra -> posiciones donde aparece, por derechos de autor
+    sobre el texto completo). Se reconstruye colocando cada palabra en sus
+    posiciones y uniendo con espacios."""
+    if not inverted_index:
+        return None
+    positions: dict[int, str] = {}
+    for word, indices in inverted_index.items():
+        for i in indices:
+            positions[i] = word
+    if not positions:
+        return None
+    return " ".join(positions[i] for i in sorted(positions))
+
+
 def _parse_work(
     raw: dict,
     *,
@@ -54,6 +70,7 @@ def _parse_work(
         discovered_via=discovered_via,
         doc_type=raw.get("type"),
         open_access=(raw.get("open_access") or {}).get("is_oa"),
+        abstract=_reconstruct_abstract(raw.get("abstract_inverted_index")),
     )
 
 

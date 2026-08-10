@@ -35,6 +35,7 @@ def _paper_to_dict(paper: Paper) -> dict:
         "relevance_score": paper.relevance_score,
         "doc_type": paper.doc_type,
         "open_access": paper.open_access,
+        "abstract": paper.abstract,
     }
 
 
@@ -173,14 +174,16 @@ class Api:
         )
         return result[0] if result else None
 
-    def export(self, path: str, format: str) -> dict:
+    def export(self, path: str, format: str, excluded_indices: list[int] | None = None) -> dict:
         if not self._results:
             return {"status": "error", "message": "no hay resultados que exportar"}
+        excluded = set(excluded_indices or [])
+        papers = [p for i, p in enumerate(self._results) if i not in excluded]
         try:
-            write(self._results, path, format=format)
+            write(papers, path, format=format)
         except (OSError, ValueError) as exc:
             return {"status": "error", "message": str(exc)}
-        return {"status": "ok", "path": path}
+        return {"status": "ok", "path": path, "count": len(papers)}
 
     # -- Ajustes ------------------------------------------------------------
 

@@ -105,8 +105,28 @@
     <div id="results-list" class="paper-list"></div>
     <div class="row">
       <button id="new-search-btn" class="secondary">Nueva búsqueda</button>
-      <button id="export-btn" class="primary">Exportar</button>
+      <button id="curate-btn" class="secondary">Revisar y curar</button>
+      <button id="export-btn" class="primary">Exportar todo</button>
     </div>
+  </section>
+
+  <!-- Pantalla 4b: curacion tipo Tinder (opcional) -->
+  <section id="screen-curation" class="screen hidden">
+    <p id="curation-counter" class="hint"></p>
+    <div id="curation-card-wrap">
+      <div id="curation-card" class="curation-card">
+        <div class="curation-score"></div>
+        <div class="title"></div>
+        <div class="meta"></div>
+        <div class="abstract"></div>
+      </div>
+    </div>
+    <p class="hint">Botones, flechas ← → del teclado, o arrastra la tarjeta.</p>
+    <div class="row curation-buttons">
+      <button id="curation-discard-btn" class="secondary">✕ Descartar</button>
+      <button id="curation-keep-btn" class="primary">✓ Guardar</button>
+    </div>
+    <button id="curation-finish-btn" class="link-btn">Terminar aquí — exportar lo revisado + el resto</button>
   </section>
 
   <!-- Pantalla 5: exportar -->

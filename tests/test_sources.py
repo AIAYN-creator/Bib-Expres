@@ -7,6 +7,7 @@ from bib_expres.models import DiscoveryMode, Paper
 from bib_expres.sources.base import MAX_RESPONSE_BYTES, ResponseCache, SourceClient
 from bib_expres.sources.crossref import _parse_work as parse_crossref_work
 from bib_expres.sources.openalex import _parse_work as parse_openalex_work
+from bib_expres.sources.openalex import _reconstruct_abstract
 from bib_expres.sources.semantic_scholar import SemanticScholarClient
 
 
@@ -34,6 +35,7 @@ def test_parse_openalex_work():
         "cited_by_count": 15,
         "type": "article",
         "open_access": {"is_oa": True, "oa_status": "gold"},
+        "abstract_inverted_index": {"A": [0], "great": [1], "paper": [2]},
     }
     paper = parse_openalex_work(raw)
     assert paper.openalex_id == "W123"
@@ -47,6 +49,7 @@ def test_parse_openalex_work():
     assert paper.discovered_via == DiscoveryMode.ROOT
     assert paper.doc_type == "article"
     assert paper.open_access is True
+    assert paper.abstract == "A great paper"
 
 
 def test_parse_openalex_work_without_type_or_open_access():
@@ -54,6 +57,18 @@ def test_parse_openalex_work_without_type_or_open_access():
     paper = parse_openalex_work(raw)
     assert paper.doc_type is None
     assert paper.open_access is None
+    assert paper.abstract is None
+
+
+def test_reconstruct_abstract_repeated_word():
+    # "the" aparece dos veces, en posiciones distintas
+    index = {"the": [0, 3], "cat": [1], "sat": [2], "mat": [4]}
+    assert _reconstruct_abstract(index) == "the cat sat the mat"
+
+
+def test_reconstruct_abstract_none_when_missing():
+    assert _reconstruct_abstract(None) is None
+    assert _reconstruct_abstract({}) is None
 
 
 def test_parse_crossref_work():
