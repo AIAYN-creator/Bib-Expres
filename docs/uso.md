@@ -1,6 +1,6 @@
 # Uso
 
-> Esta página describe la interfaz **objetivo**, tal como está definida en la arquitectura del proyecto. La CLI se está implementando por partes — no todo lo de aquí funciona todavía. Consulta el README para el estado actual.
+> El pipeline ya está conectado de principio a fin (DOI → expansión → BibTeX). Falta validarlo contra un caso real — ver el README para el estado actual del proyecto.
 
 ## Uso básico
 
@@ -20,9 +20,12 @@ Dado un DOI, genera un fichero BibTeX con la bibliografía consolidada a partir 
 | `--max-fanout` | Tope de artículos nuevos a traer por cada paper individual | 20 |
 | `--modes` | Modos de expansión activos: `references`, `citations`, `similar` (separados por coma) | `references,citations` |
 | `--relevance-threshold` | Puntuación mínima (0-1) para que un artículo se incluya | 0.3 |
-| `--output` | Fichero de salida en formato BibTeX | — |
+| `--weight-topic` | Peso del solapamiento temático en el score de relevancia | 1.0 |
+| `--weight-citations` | Peso de las citas (normalizadas) en el score | 0.2 |
+| `--weight-recency` | Peso de la recencia en el score | 0.1 |
+| `--output` | Fichero de salida en formato BibTeX | `bibliografia.bib` |
 
-El modo `similar` requiere tener configurada `SEMANTIC_SCHOLAR_API_KEY` (ver [instalación](instalacion.md)).
+El modo `similar` requiere tener configurada `SEMANTIC_SCHOLAR_API_KEY` (ver [instalación](instalacion.md)) — sin ella funciona igual, pero con un rate limit mucho más bajo (la CLI avisa si detecta esta combinación).
 
 ## Ejemplo con parámetros ajustados
 
