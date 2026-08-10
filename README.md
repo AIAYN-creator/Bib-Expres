@@ -2,7 +2,7 @@
 
 Herramienta de snowballing bibliográfico: a partir de un paper padre (DOI), expande generaciones de referencias, citas y artículos similares, y consolida una bibliografía filtrada por relevancia.
 
-**Estado: v1 funciona de principio a fin — 200 artículos en ~22 segundos** en la validación real ([ver ejemplo completo](docs/ejemplo.md)).
+**Estado: v1 funciona de principio a fin — 200 artículos en ~22 segundos** en la validación real ([ver ejemplo completo](docs/ejemplo.md)). v2 (interfaz gráfica + `.exe` descargable) en marcha — alcance y prioridades ya decididos, ver [Qué queda para v2](#qué-queda-para-v2).
 
 ## Cómo funciona
 
@@ -63,11 +63,20 @@ La diferencia de bib_exprés: es una herramienta de línea de comandos y librer�
 
 ## Qué queda para v2
 
-- Aceptar como entrada un ID/URL de arXiv, un título en texto libre (con confirmación), o subir un PDF y extraer el DOI/título automáticamente.
-- Filtrar por tipo de documento o estado de acceso abierto — los datos ya se guardan, pero v1 no filtra por ellos.
-- Hacer una interfaz de usuario más "beginner friendly", incluso empaquetarlo como un `.exe` descargable (viable con PyInstaller o similar, sin depender de tener Python instalado)
-- Si algún día se expone como servicio para terceros (no solo CLI/librería local), añadir autenticación/autorización — hoy no aplica porque todo corre en local.
-- Configuración a varios formatos de salida
+v2 está en marcha: alcance y prioridades ya decididos, implementación por empezar. El objetivo central es que el trabajo con la terminal deje de ser un requisito.
+
+**Núcleo** (sin esto no hay v2 que anunciar):
+
+- Interfaz gráfica de escritorio, empaquetada como `.exe` descargable (PyInstaller o similar) — introducir el DOI/parámetros de búsqueda sin usar la CLI.
+- Curación de resultados tipo Tinder: revisar cada candidato (abstract, objetivos) y decidir guardar/descartar a mano, en vez de fiarse solo del score de relevancia automático.
+
+**Complementario** (cambios de librería, independientes de la GUI — pueden llegar en paralelo al núcleo o después):
+
+- Aceptar como entrada un ID/URL de arXiv, un título en texto libre, o un PDF, además del DOI de v1.
+- Formatos de salida adicionales (RIS, CSL-JSON) además de BibTeX.
+- Filtrar por tipo de documento o estado de acceso abierto — OpenAlex ya devuelve ambos datos en cada respuesta, pero v1 no los guarda ni los filtra todavía.
+
+**Descartado por ahora:** autenticación/autorización — solo tendría sentido si esto se expusiera como servicio a terceros, y v2 sigue siendo una app de escritorio local.
 
 ## Preguntas abiertas
 
