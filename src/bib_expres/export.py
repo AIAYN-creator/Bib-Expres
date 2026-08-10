@@ -23,8 +23,18 @@ def _cite_key(paper: Paper, used_keys: set[str]) -> str:
     return key
 
 
+_ESCAPE_MAP = {
+    "\\": r"\textbackslash{}",
+    "{": r"\{",
+    "}": r"\}",
+}
+
+
 def _escape(value: str) -> str:
-    return value.replace("{", r"\{").replace("}", r"\}")
+    """Caracter a caracter sobre el original -- si se hiciera en pasadas
+    secuenciales de str.replace(), escapar '\\' despues de '{'/'}' (o viceversa)
+    reescaparia las llaves que la propia sustitucion introduce."""
+    return "".join(_ESCAPE_MAP.get(ch, ch) for ch in value)
 
 
 def _entry(paper: Paper, key: str) -> str:

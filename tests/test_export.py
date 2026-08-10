@@ -38,3 +38,9 @@ def test_to_bibtex_disambiguates_duplicate_keys():
 
 def test_to_bibtex_empty_list():
     assert to_bibtex([]) == ""
+
+
+def test_to_bibtex_escapes_braces_and_backslashes():
+    paper = _paper(title=r"A {weird} \title")
+    bib = to_bibtex([paper])
+    assert r"title = {A \{weird\} \textbackslash{}title}" in bib

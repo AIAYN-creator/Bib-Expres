@@ -2,7 +2,7 @@
 
 Herramienta de snowballing bibliográfico: a partir de un paper padre (DOI), expande generaciones de referencias, citas y artículos similares, y consolida una bibliografía filtrada por relevancia.
 
-**Estado: v1 funciona de principio a fin.** Ver [docs/ejemplo.md](docs/ejemplo.md) para una ejecución real.
+**Estado: v1 funciona de principio a fin — 200 artículos en ~22 segundos** en la validación real ([ver ejemplo completo](docs/ejemplo.md)).
 
 ## Cómo funciona
 

@@ -37,8 +37,12 @@ def _parse_work(
     primary_location = raw.get("primary_location") or {}
     source = primary_location.get("source") or {}
 
+    work_id = raw.get("id")
+    if not work_id:
+        raise ValueError("Respuesta de OpenAlex sin 'id' -- no se puede procesar el resultado")
+
     return Paper(
-        openalex_id=_strip_openalex_id(raw["id"]),
+        openalex_id=_strip_openalex_id(work_id),
         doi=_strip_doi(raw.get("doi")),
         title=raw.get("display_name") or "(sin titulo)",
         authors=authors,

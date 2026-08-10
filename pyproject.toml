@@ -7,7 +7,7 @@ license = {text = "MIT"}
 dependencies = ["requests>=2.31", "python-dotenv>=1.0"]
 
 [project.optional-dependencies]
-dev = ["pytest"]
+dev = ["pytest", "pip-audit"]
 
 [project.scripts]
 bib-expres = "bib_expres.cli:main"

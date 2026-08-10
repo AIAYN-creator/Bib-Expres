@@ -1,8 +1,23 @@
+import pytest
+import requests
+
 from bib_expres.models import DiscoveryMode, Paper
-from bib_expres.sources.base import ResponseCache
+from bib_expres.sources.base import MAX_RESPONSE_BYTES, ResponseCache, SourceClient
 from bib_expres.sources.crossref import _parse_work as parse_crossref_work
 from bib_expres.sources.openalex import _parse_work as parse_openalex_work
 from bib_expres.sources.semantic_scholar import SemanticScholarClient
+
+
+class _FakeResponse:
+    def __init__(self, content: bytes, headers: dict | None = None):
+        self.content = content
+        self.headers = headers or {}
+
+    def raise_for_status(self):
+        pass
+
+    def json(self):
+        return {}
 
 
 def test_parse_openalex_work():
@@ -57,6 +72,33 @@ def test_response_cache_expires(tmp_path):
     cache = ResponseCache(path=tmp_path / "cache.sqlite3", ttl_seconds=0)
     cache.set("https://example.com", None, {"result": 42})
     assert cache.get("https://example.com", None) is None
+
+
+def test_parse_openalex_work_missing_id_raises():
+    with pytest.raises(ValueError, match="sin 'id'"):
+        parse_openalex_work({"display_name": "No ID Paper"})
+
+
+def test_source_client_rejects_oversized_response_by_content_length(tmp_path, monkeypatch):
+    client = SourceClient(
+        base_url="https://example.com", cache=ResponseCache(path=tmp_path / "c.sqlite3")
+    )
+    fake = _FakeResponse(content=b"{}", headers={"Content-Length": str(MAX_RESPONSE_BYTES + 1)})
+    monkeypatch.setattr(client._session, "get", lambda *a, **k: fake)
+
+    with pytest.raises(requests.RequestException):
+        client.get("/works")
+
+
+def test_source_client_rejects_oversized_response_by_actual_size(tmp_path, monkeypatch):
+    client = SourceClient(
+        base_url="https://example.com", cache=ResponseCache(path=tmp_path / "c.sqlite3")
+    )
+    fake = _FakeResponse(content=b"x" * (MAX_RESPONSE_BYTES + 1))
+    monkeypatch.setattr(client._session, "get", lambda *a, **k: fake)
+
+    with pytest.raises(requests.RequestException):
+        client.get("/works")
 
 
 def test_semantic_scholar_get_similar_without_doi_returns_empty():

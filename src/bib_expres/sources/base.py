@@ -14,6 +14,7 @@ from urllib3.util.retry import Retry
 DEFAULT_CACHE_PATH = Path.home() / ".cache" / "bib_expres" / "http_cache.sqlite3"
 DEFAULT_TIMEOUT = 15
 DEFAULT_TTL_SECONDS = 7 * 24 * 60 * 60  # 1 semana
+MAX_RESPONSE_BYTES = 10 * 1024 * 1024  # 10 MB -- las respuestas de estas APIs son metadata, nunca deberian acercarse a esto
 
 
 class ResponseCache:
@@ -43,7 +44,7 @@ class ResponseCache:
         if row is None:
             return None
         value, stored_at = row
-        if time.time() - stored_at > self._ttl:
+        if time.time() - stored_at >= self._ttl:
             return None
         return json.loads(value)
 
@@ -101,6 +102,18 @@ class SourceClient:
 
         response = self._session.get(url, params=params, timeout=self.timeout)
         response.raise_for_status()
+
+        content_length = response.headers.get("Content-Length")
+        if content_length and int(content_length) > MAX_RESPONSE_BYTES:
+            raise requests.RequestException(
+                f"Respuesta de {url} demasiado grande segun Content-Length "
+                f"({content_length} bytes) -- rechazada como precaucion"
+            )
+        if len(response.content) > MAX_RESPONSE_BYTES:
+            raise requests.RequestException(
+                f"Respuesta de {url} demasiado grande (>{MAX_RESPONSE_BYTES} bytes) -- rechazada como precaucion"
+            )
+
         data = response.json()
 
         if use_cache:
