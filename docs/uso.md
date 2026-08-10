@@ -40,3 +40,9 @@ bib-expres --doi 10.1000/ejemplo \
 ## Salida
 
 Un fichero `.bib` estándar, importable directamente en Zotero, Mendeley, JabRef o LaTeX (`\bibliography{...}`).
+
+**Dónde encontrarlo al terminar**: en la ruta que le des a `--output`, o en `bibliografia.bib` dentro del directorio desde el que ejecutaste el comando si no lo especificas. El programa no lo abre ni lo mueve a ningún sitio — simplemente ahí queda, esperando a que lo cojas (para importarlo en tu gestor de referencias, subirlo a otro sitio, lo que necesites).
+
+## Rendimiento
+
+En la validación real documentada en [docs/ejemplo.md](ejemplo.md): **200 artículos en ~22 segundos**, con los parámetros por defecto (2 generaciones, tope de 200, modos `references,citations`) sobre un paper con miles de citas entrantes. El tiempo depende sobre todo del tamaño del grafo de citas del paper padre y de cuántas generaciones/artículos pidas — no es una cifra fija, pero da una idea de la escala.
