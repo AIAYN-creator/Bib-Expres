@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>bib-exprés</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header>
+  <h1>bib-exprés</h1>
+  <button id="settings-btn" class="link-btn" title="Ajustes">⚙ Ajustes</button>
+</header>
+
+<main>
+
+  <!-- Pantalla 1: identificar el paper padre -->
+  <section id="screen-input" class="screen">
+    <h2>¿De qué paper partimos?</h2>
+    <p class="hint">DOI, enlace de arXiv o título del paper.</p>
+    <div class="row">
+      <input id="input-raw" type="text" placeholder="10.1000/ejemplo, arxiv.org/abs/2301.12345, o un título...">
+      <button id="pick-pdf-btn" class="secondary">📄 Subir PDF</button>
+    </div>
+    <p id="input-error" class="error hidden"></p>
+    <button id="resolve-btn" class="primary">Continuar</button>
+  </section>
+
+  <!-- Pantalla 1b: confirmar candidato (solo si hace falta) -->
+  <section id="screen-confirm" class="screen hidden">
+    <h2>Varios resultados para "<span id="confirm-query"></span>"</h2>
+    <p class="hint">Ninguno se selecciona solo -- elige el que sea.</p>
+    <div id="confirm-list" class="candidate-list"></div>
+    <button id="confirm-back-btn" class="secondary">Ninguno es este -- cambiar búsqueda</button>
+  </section>
+
+  <!-- Pantalla 2: parámetros de búsqueda -->
+  <section id="screen-params" class="screen hidden">
+    <div id="params-paper-chip" class="paper-chip"></div>
+
+    <div class="field">
+      <label for="param-generations">Generaciones a expandir</label>
+      <input id="param-generations" type="number" min="1" max="5" value="2">
+    </div>
+    <div class="field">
+      <label for="param-max-articles">Tope total de artículos</label>
+      <input id="param-max-articles" type="number" min="1" value="200">
+    </div>
+    <div class="field">
+      <label>Modos de expansión</label>
+      <label class="checkbox"><input type="checkbox" class="param-mode" value="references" checked> Referencias</label>
+      <label class="checkbox"><input type="checkbox" class="param-mode" value="citations" checked> Citas</label>
+      <label class="checkbox"><input type="checkbox" class="param-mode" value="similar"> Similares (requiere API key de Semantic Scholar)</label>
+    </div>
+
+    <div class="field">
+      <label>Tipo de documento (ninguno marcado = todos)</label>
+      <label class="checkbox"><input type="checkbox" class="param-doctype" value="article"> Artículo</label>
+      <label class="checkbox"><input type="checkbox" class="param-doctype" value="preprint"> Preprint</label>
+      <label class="checkbox"><input type="checkbox" class="param-doctype" value="book-chapter"> Capítulo de libro</label>
+      <label class="checkbox"><input type="checkbox" class="param-doctype" value="dataset"> Dataset</label>
+      <label class="checkbox"><input type="checkbox" class="param-doctype" value="review"> Review</label>
+    </div>
+    <div class="field">
+      <label class="checkbox"><input id="param-open-access" type="checkbox"> Solo acceso abierto</label>
+    </div>
+
+    <details class="advanced">
+      <summary>Avanzado</summary>
+      <div class="field">
+        <label for="param-max-fanout">Tope de candidatos por artículo</label>
+        <input id="param-max-fanout" type="number" min="1" value="20">
+      </div>
+      <div class="field">
+        <label for="param-threshold">Umbral de relevancia (0-1)</label>
+        <input id="param-threshold" type="number" min="0" max="1" step="0.05" value="0.3">
+      </div>
+      <div class="field">
+        <label for="param-weight-topic">Peso: tema</label>
+        <input id="param-weight-topic" type="number" step="0.1" value="1.0">
+      </div>
+      <div class="field">
+        <label for="param-weight-citations">Peso: citas</label>
+        <input id="param-weight-citations" type="number" step="0.1" value="0.2">
+      </div>
+      <div class="field">
+        <label for="param-weight-recency">Peso: recencia</label>
+        <input id="param-weight-recency" type="number" step="0.1" value="0.1">
+      </div>
+    </details>
+
+    <p id="params-error" class="error hidden"></p>
+    <button id="search-btn" class="primary">Buscar</button>
+  </section>
+
+  <!-- Pantalla 3: progreso -->
+  <section id="screen-progress" class="screen hidden">
+    <div class="spinner"></div>
+    <p id="progress-message">Un momento...</p>
+  </section>
+
+  <!-- Pantalla 4: resultados -->
+  <section id="screen-results" class="screen hidden">
+    <h2 id="results-count"></h2>
+    <div id="results-list" class="paper-list"></div>
+    <div class="row">
+      <button id="new-search-btn" class="secondary">Nueva búsqueda</button>
+      <button id="export-btn" class="primary">Exportar</button>
+    </div>
+  </section>
+
+  <!-- Pantalla 5: exportar -->
+  <section id="screen-export" class="screen hidden">
+    <h2>Exportar bibliografía</h2>
+    <div class="field">
+      <label for="export-format">Formato</label>
+      <select id="export-format">
+        <option value="bibtex" selected>BibTeX (.bib)</option>
+        <option value="ris">RIS (.ris)</option>
+        <option value="csljson">CSL-JSON (.json)</option>
+      </select>
+    </div>
+    <div class="row">
+      <input id="export-path" type="text" readonly placeholder="Elige dónde guardar...">
+      <button id="export-pick-btn" class="secondary">Elegir fichero</button>
+    </div>
+    <p id="export-error" class="error hidden"></p>
+    <p id="export-success" class="success hidden"></p>
+    <div class="row">
+      <button id="export-back-btn" class="secondary">Volver</button>
+      <button id="export-confirm-btn" class="primary">Guardar</button>
+    </div>
+  </section>
+
+  <!-- Ajustes -->
+  <section id="screen-settings" class="screen hidden">
+    <h2>Ajustes</h2>
+    <div class="field">
+      <label for="settings-email">Email de contacto (mailto de las APIs)</label>
+      <input id="settings-email" type="text" placeholder="tu@email.com">
+    </div>
+    <div class="field">
+      <label for="settings-key">API key de Semantic Scholar (opcional)</label>
+      <input id="settings-key" type="text" placeholder="Sin ella, el modo 'similares' funciona con rate limit más bajo">
+    </div>
+    <p id="settings-saved" class="success hidden">Guardado.</p>
+    <div class="row">
+      <button id="settings-back-btn" class="secondary">Volver</button>
+      <button id="settings-save-btn" class="primary">Guardar</button>
+    </div>
+  </section>
+
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

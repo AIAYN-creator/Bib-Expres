@@ -51,6 +51,10 @@ def expand(
             candidate.relevance_score = score(candidate, root, config.relevance_weights)
             if not meets_threshold(candidate, config.relevance_threshold):
                 continue
+            if config.allowed_doc_types and candidate.doc_type not in config.allowed_doc_types:
+                continue
+            if config.require_open_access and not candidate.open_access:
+                continue
             seen[key] = candidate
             scored_candidates.append(candidate)
 

@@ -30,3 +30,5 @@ class Paper:
     generation: int
     discovered_via: DiscoveryMode
     relevance_score: float | None = None
+    doc_type: str | None = None
+    open_access: bool | None = None

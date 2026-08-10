@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import sqlite3
+import threading
 import time
 from pathlib import Path
 from typing import Any
@@ -24,12 +25,26 @@ class ResponseCache:
 
     def __init__(self, path: Path = DEFAULT_CACHE_PATH, ttl_seconds: int = DEFAULT_TTL_SECONDS) -> None:
         self._ttl = ttl_seconds
+        self._path = path
         path.parent.mkdir(parents=True, exist_ok=True)
-        self._conn = sqlite3.connect(path)
-        self._conn.execute(
-            "CREATE TABLE IF NOT EXISTS cache (key TEXT PRIMARY KEY, value TEXT, stored_at REAL)"
-        )
-        self._conn.commit()
+        self._local = threading.local()
+
+    @property
+    def _conn(self) -> sqlite3.Connection:
+        """Conexion sqlite3 por hilo -- una misma ResponseCache se comparte entre
+        llamadas de la GUI que pywebview despacha cada una en su propio hilo
+        (ver webview/util.py), y sqlite3 no permite reutilizar una conexion
+        creada en otro hilo. Se crea perezosamente la primera vez que este hilo
+        la toca, y se reutiliza en llamadas siguientes del mismo hilo."""
+        conn = getattr(self._local, "conn", None)
+        if conn is None:
+            conn = sqlite3.connect(self._path)
+            conn.execute(
+                "CREATE TABLE IF NOT EXISTS cache (key TEXT PRIMARY KEY, value TEXT, stored_at REAL)"
+            )
+            conn.commit()
+            self._local.conn = conn
+        return conn
 
     @staticmethod
     def _key(url: str, params: dict[str, Any] | None) -> str:

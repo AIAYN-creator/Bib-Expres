@@ -7,8 +7,15 @@ from dotenv import load_dotenv
 
 from .config import ExpansionMode, InstallConfig, RelevanceWeights, SearchConfig
 from .expansion import expand
-from .export import write_bibtex
-from .resolve import DOIResolutionError, resolve_root_paper
+from .export import infer_format, write
+from .models import Paper
+from .resolve import (
+    DOIResolutionError,
+    TitleSearchRequired,
+    resolve_input,
+    resolve_root_paper,
+    search_by_title,
+)
 from .sources.crossref import CrossrefClient
 from .sources.openalex import OpenAlexClient
 from .sources.semantic_scholar import SemanticScholarClient
@@ -38,7 +45,12 @@ def _build_parser() -> argparse.ArgumentParser:
         description="Snowballing bibliografico a partir de un paper padre (DOI).",
     )
     parser.add_argument("--version", action="version", version="0.1.0")
-    parser.add_argument("--doi", required=True, help="DOI del paper padre")
+    parser.add_argument("--doi", help="DOI del paper padre (atajo directo, sin autodeteccion)")
+    parser.add_argument(
+        "--input",
+        help="DOI, ID/URL de arXiv, ruta a un PDF, o titulo del paper padre "
+        "(autodetecta el tipo; usa --doi si ya sabes que es un DOI)",
+    )
     parser.add_argument("--generations", type=int, default=2, help="Generaciones a expandir (1-5)")
     parser.add_argument("--max-articles", type=int, default=200, help="Tope total de articulos")
     parser.add_argument(
@@ -61,8 +73,34 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--weight-citations", type=float, default=0.2, help="Peso de las citas")
     parser.add_argument("--weight-recency", type=float, default=0.1, help="Peso de la recencia")
-    parser.add_argument("--output", default=DEFAULT_OUTPUT, help="Fichero de salida BibTeX")
+    parser.add_argument("--output", default=DEFAULT_OUTPUT, help="Fichero de salida")
+    parser.add_argument(
+        "--format",
+        choices=["bibtex", "ris", "csljson"],
+        default=None,
+        help="Formato de salida; por defecto se infiere de la extension de --output",
+    )
     return parser
+
+
+def _confirm_title_candidate(query: str, openalex_client: OpenAlexClient) -> Paper | None:
+    """Prompt interactivo simple: lista numerada de candidatos, elegir numero o
+    cancelar. Nunca se auto-selecciona el primero -- la busqueda por titulo es
+    ambigua por naturaleza (ver input-formatos-v2)."""
+    candidates = search_by_title(query, openalex_client)
+    if not candidates:
+        print(f"No se encontraron resultados para '{query}'.", file=sys.stderr)
+        return None
+
+    print(f"Varios resultados para '{query}':", file=sys.stderr)
+    for i, paper in enumerate(candidates, start=1):
+        authors = ", ".join(paper.authors[:3]) or "autores desconocidos"
+        print(f"  {i}. {paper.title} ({paper.year or 's.f.'}) -- {authors}", file=sys.stderr)
+
+    choice = input("Elige un numero (Enter para cancelar): ").strip()
+    if not choice.isdigit() or not (1 <= int(choice) <= len(candidates)):
+        return None
+    return candidates[int(choice) - 1]
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -70,6 +108,9 @@ def main(argv: list[str] | None = None) -> int:
 
     parser = _build_parser()
     args = parser.parse_args(argv)
+
+    if not args.doi and not args.input:
+        parser.error("hace falta --doi o --input")
 
     try:
         config = SearchConfig(
@@ -103,17 +144,27 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     try:
-        root = resolve_root_paper(args.doi, openalex_client=openalex, crossref_client=crossref)
+        if args.doi:
+            root = resolve_root_paper(args.doi, openalex_client=openalex, crossref_client=crossref)
+        else:
+            root = resolve_input(args.input, openalex_client=openalex, crossref_client=crossref)
     except DOIResolutionError as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 1
+    except TitleSearchRequired as exc:
+        confirmed = _confirm_title_candidate(exc.query, openalex)
+        if confirmed is None:
+            print("Cancelado.", file=sys.stderr)
+            return 1
+        root = confirmed
 
     results = expand(
         root, config, openalex_client=openalex, semantic_scholar_client=semantic_scholar
     )
 
+    output_format = args.format or infer_format(args.output)
     try:
-        write_bibtex(results, args.output)
+        write(results, args.output, format=output_format)
     except OSError as exc:
         print(f"Error al escribir '{args.output}': {exc}", file=sys.stderr)
         return 1

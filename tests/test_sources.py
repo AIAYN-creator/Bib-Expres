@@ -1,3 +1,5 @@
+import threading
+
 import pytest
 import requests
 
@@ -30,6 +32,8 @@ def test_parse_openalex_work():
         "primary_location": {"source": {"display_name": "A Journal"}},
         "concepts": [{"display_name": "Machine learning", "score": 0.8}],
         "cited_by_count": 15,
+        "type": "article",
+        "open_access": {"is_oa": True, "oa_status": "gold"},
     }
     paper = parse_openalex_work(raw)
     assert paper.openalex_id == "W123"
@@ -41,6 +45,15 @@ def test_parse_openalex_work():
     assert paper.concepts[0].name == "Machine learning"
     assert paper.citation_count == 15
     assert paper.discovered_via == DiscoveryMode.ROOT
+    assert paper.doc_type == "article"
+    assert paper.open_access is True
+
+
+def test_parse_openalex_work_without_type_or_open_access():
+    raw = {"id": "https://openalex.org/W123", "display_name": "A Paper"}
+    paper = parse_openalex_work(raw)
+    assert paper.doc_type is None
+    assert paper.open_access is None
 
 
 def test_parse_crossref_work():
@@ -72,6 +85,30 @@ def test_response_cache_expires(tmp_path):
     cache = ResponseCache(path=tmp_path / "cache.sqlite3", ttl_seconds=0)
     cache.set("https://example.com", None, {"result": 42})
     assert cache.get("https://example.com", None) is None
+
+
+def test_response_cache_usable_from_multiple_threads(tmp_path):
+    # regresion: pywebview despacha cada llamada de la GUI en un hilo nuevo: una
+    # ResponseCache creada en un hilo y usada desde otro reventaba con
+    # "SQLite objects created in a thread can only be used in that same thread".
+    cache = ResponseCache(path=tmp_path / "cache.sqlite3")
+    errors: list[BaseException] = []
+
+    def worker(i: int) -> None:
+        try:
+            url = f"https://example.com/{i}"
+            cache.set(url, None, {"result": i})
+            assert cache.get(url, None) == {"result": i}
+        except BaseException as exc:  # noqa: BLE001 -- se recoge para reportar, no se traga
+            errors.append(exc)
+
+    threads = [threading.Thread(target=worker, args=(i,)) for i in range(5)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    assert not errors, errors
 
 
 def test_parse_openalex_work_missing_id_raises():

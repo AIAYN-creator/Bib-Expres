@@ -9,6 +9,8 @@ def test_search_config_defaults():
     assert ExpansionMode.REFERENCES in config.modes
     assert ExpansionMode.CITATIONS in config.modes
     assert ExpansionMode.SIMILAR not in config.modes
+    assert config.allowed_doc_types is None
+    assert config.require_open_access is False
 
 
 def test_search_config_rejects_too_many_generations():

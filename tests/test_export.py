@@ -1,4 +1,8 @@
-from bib_expres.export import to_bibtex
+import json
+
+import pytest
+
+from bib_expres.export import infer_format, to_bibtex, to_csljson, to_ris, write
 from bib_expres.models import DiscoveryMode, Paper
 
 
@@ -44,3 +48,66 @@ def test_to_bibtex_escapes_braces_and_backslashes():
     paper = _paper(title=r"A {weird} \title")
     bib = to_bibtex([paper])
     assert r"title = {A \{weird\} \textbackslash{}title}" in bib
+
+
+def test_to_ris_includes_core_fields():
+    ris = to_ris([_paper()])
+    assert "TY  - JOUR" in ris
+    assert "TI  - A Great Paper" in ris
+    assert "AU  - Jane Smith" in ris
+    assert "AU  - John Doe" in ris
+    assert "PY  - 2021" in ris
+    assert "T2  - Journal of Things" in ris
+    assert "DO  - 10.1/abc" in ris
+    assert "UR  - https://doi.org/10.1/abc" in ris
+    assert "ER  -" in ris
+
+
+def test_to_ris_empty_list():
+    assert to_ris([]) == ""
+
+
+def test_to_ris_omits_missing_fields():
+    paper = _paper(doi=None, venue=None)
+    ris = to_ris([paper])
+    assert "DO  -" not in ris
+    assert "UR  -" not in ris
+    assert "T2  -" not in ris
+
+
+def test_to_csljson_includes_core_fields():
+    entries = json.loads(to_csljson([_paper()]))
+    assert len(entries) == 1
+    entry = entries[0]
+    assert entry["type"] == "article-journal"
+    assert entry["title"] == "A Great Paper"
+    assert entry["author"] == [
+        {"family": "Smith", "given": "Jane"},
+        {"family": "Doe", "given": "John"},
+    ]
+    assert entry["issued"] == {"date-parts": [[2021]]}
+    assert entry["container-title"] == "Journal of Things"
+    assert entry["DOI"] == "10.1/abc"
+    assert entry["URL"] == "https://doi.org/10.1/abc"
+
+
+def test_to_csljson_empty_list():
+    assert to_csljson([]) == "[]"
+
+
+def test_write_dispatches_by_format(tmp_path):
+    path = tmp_path / "out.ris"
+    write([_paper()], str(path), format="ris")
+    assert "TY  - JOUR" in path.read_text(encoding="utf-8")
+
+
+def test_write_rejects_unknown_format(tmp_path):
+    with pytest.raises(ValueError, match="formato desconocido"):
+        write([_paper()], str(tmp_path / "out.xyz"), format="nope")
+
+
+def test_infer_format_by_extension():
+    assert infer_format("out.bib") == "bibtex"
+    assert infer_format("out.ris") == "ris"
+    assert infer_format("out.json") == "csljson"
+    assert infer_format("out.unknown") == "bibtex"

@@ -28,6 +28,8 @@ class SearchConfig:
     )
     relevance_weights: RelevanceWeights = field(default_factory=RelevanceWeights)
     relevance_threshold: float = 0.3
+    allowed_doc_types: set[str] | None = None  # None = sin filtro, cualquier tipo entra
+    require_open_access: bool = False
 
     def __post_init__(self) -> None:
         if not 1 <= self.generations <= 5:

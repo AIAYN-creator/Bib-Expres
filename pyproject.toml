@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Herramienta de snowballing bibliografico a partir de un paper padre"
 requires-python = ">=3.10"
 license = {text = "MIT"}
-dependencies = ["requests>=2.31", "python-dotenv>=1.0"]
+dependencies = ["requests>=2.31", "python-dotenv>=1.0", "pypdf>=5.0", "pywebview>=5.0"]
 
 [project.optional-dependencies]
 dev = ["pytest", "pip-audit"]
@@ -12,9 +12,15 @@ dev = ["pytest", "pip-audit"]
 [project.scripts]
 bib-expres = "bib_expres.cli:main"
 
+[project.gui-scripts]
+bib-expres-gui = "bib_expres.gui.app:main"
+
 [build-system]
 requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+"bib_expres.gui" = ["static/*"]

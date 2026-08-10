@@ -73,6 +73,70 @@ def test_expand_deduplicates_across_paths():
     assert shared_count == 1
 
 
+def test_expand_filters_by_doc_type():
+    root = _paper("root")
+    article = _paper("article", doc_type="article")
+    dataset = _paper("dataset", doc_type="dataset")
+    openalex = _FakeOpenAlex(references={"root": [article, dataset]})
+
+    config = SearchConfig(
+        generations=1,
+        max_articles=10,
+        relevance_threshold=0.0,
+        allowed_doc_types={"article"},
+        modes={ExpansionMode.REFERENCES},
+    )
+    result = expand(root, config, openalex_client=openalex)
+
+    ids = {p.openalex_id for p in result}
+    assert "article" in ids
+    assert "dataset" not in ids
+
+
+def test_expand_filters_by_open_access():
+    root = _paper("root")
+    oa = _paper("oa", open_access=True)
+    closed = _paper("closed", open_access=False)
+    unknown = _paper("unknown", open_access=None)
+    openalex = _FakeOpenAlex(references={"root": [oa, closed, unknown]})
+
+    config = SearchConfig(
+        generations=1,
+        max_articles=10,
+        relevance_threshold=0.0,
+        require_open_access=True,
+        modes={ExpansionMode.REFERENCES},
+    )
+    result = expand(root, config, openalex_client=openalex)
+
+    ids = {p.openalex_id for p in result}
+    assert ids == {"root", "oa"}
+
+
+def test_expand_excluded_candidate_does_not_take_fanout_slot_from_valid_one():
+    # dataset puntuaria mas alto que article por solapamiento tematico -- si el
+    # filtro se aplicara despues de cortar por fanout (en vez de antes), dataset
+    # se quedaria con el unico hueco y luego se descartaria, dejando el hueco vacio.
+    root = _paper("root", concepts=[Concept(name="Cats", score=1.0)])
+    dataset = _paper("dataset", doc_type="dataset", concepts=[Concept(name="Cats", score=1.0)])
+    article = _paper("article", doc_type="article", concepts=[Concept(name="Dogs", score=1.0)])
+    openalex = _FakeOpenAlex(references={"root": [dataset, article]})
+
+    config = SearchConfig(
+        generations=1,
+        max_articles=10,
+        max_fanout_per_node=1,
+        relevance_threshold=0.0,
+        allowed_doc_types={"article"},
+        modes={ExpansionMode.REFERENCES},
+    )
+    result = expand(root, config, openalex_client=openalex)
+
+    ids = {p.openalex_id for p in result}
+    assert "article" in ids
+    assert "dataset" not in ids
+
+
 def test_expand_prioritises_higher_relevance_within_fanout_cap():
     root = _paper("root", concepts=[Concept(name="Cats", score=1.0)])
     relevant = _paper("relevant", concepts=[Concept(name="Cats", score=1.0)])

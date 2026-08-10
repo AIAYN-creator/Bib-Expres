@@ -52,6 +52,8 @@ def _parse_work(
         citation_count=raw.get("cited_by_count", 0),
         generation=generation,
         discovered_via=discovered_via,
+        doc_type=raw.get("type"),
+        open_access=(raw.get("open_access") or {}).get("is_oa"),
     )
 
 
@@ -82,6 +84,12 @@ class OpenAlexClient:
             _parse_work(w, generation=generation, discovered_via=DiscoveryMode.CITATION)
             for w in raw.get("results", [])
         ]
+
+    def search_by_title(self, title: str, limit: int = 5) -> list[Paper]:
+        """Busqueda ambigua por naturaleza -- devuelve candidatos ordenados por
+        relevancia de busqueda, nunca resuelve sola a un unico Paper."""
+        raw = self._client.get("/works", params={"search": title, "per_page": limit})
+        return [_parse_work(w) for w in raw.get("results", [])]
 
     def _fetch_by_ids(
         self, ids: list[str], generation: int, discovered_via: DiscoveryMode
