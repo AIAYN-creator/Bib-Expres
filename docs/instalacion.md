@@ -35,6 +35,27 @@ Y rellena:
 bib-expres --version
 ```
 
+## Interfaz gráfica
+
+Alternativa a la CLI para quien prefiera no usar terminal. Con el paquete instalado (paso anterior), se lanza igual que la CLI:
+
+```bash
+bib-expres-gui
+```
+
+Abre una ventana de escritorio (usa el motor web del propio sistema — WebView2 en Windows, ya viene con Windows 10/11) con un formulario para el paper de entrada (DOI, ID/URL de arXiv, título o PDF), los parámetros de búsqueda, y exportación a BibTeX/RIS/CSL-JSON. El email de contacto y la API key de Semantic Scholar también se pueden configurar desde dentro (icono de Ajustes), sin tocar el `.env` a mano.
+
+## Construir el `.exe` standalone
+
+Para usarlo en una máquina sin Python instalado. Requiere haber clonado el repo (no hay todavía una descarga directa publicada):
+
+```bash
+pip install -e ".[packaging]"
+pyinstaller packaging/bib-expres-gui.spec
+```
+
+El resultado queda en `dist/bib-expres-gui.exe` (~13 MB) — un único fichero, sin dependencias externas salvo el WebView2 que Windows 10/11 ya trae de fábrica. Como no está firmado, Windows puede mostrar un aviso de SmartScreen la primera vez ("Más información" > "Ejecutar de todas formas").
+
 ## Ejecutar los tests
 
 ```bash

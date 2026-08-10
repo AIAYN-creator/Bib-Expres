@@ -2,7 +2,7 @@
 
 Herramienta de snowballing bibliográfico: a partir de un paper padre (DOI), expande generaciones de referencias, citas y artículos similares, y consolida una bibliografía filtrada por relevancia.
 
-**Estado: v1 funciona de principio a fin — 200 artículos en ~22 segundos** en la validación real ([ver ejemplo completo](docs/ejemplo.md)). v2 (interfaz gráfica + `.exe` descargable) en marcha — alcance y prioridades ya decididos, ver [Qué queda para v2](#qué-queda-para-v2).
+**Estado: v1 funciona de principio a fin — 200 artículos en ~22 segundos** en la validación real ([ver ejemplo completo](docs/ejemplo.md)). La interfaz gráfica de v2 ya funciona de principio a fin también, `.exe` standalone incluido (se construye en local, todavía sin descarga pública) — falta la curación manual tipo Tinder, ver [Qué queda para v2](#qué-queda-para-v2).
 
 ## Cómo funciona
 
@@ -17,7 +17,7 @@ DOI de entrada
   -> exportacion -> fichero .bib
 ```
 
-Todos los parámetros de la búsqueda son configurables (generaciones, tope total de artículos, tope por artículo, modos de expansión activos, pesos de relevancia) — nada queda fijo en el código.
+Todos los parámetros de la búsqueda son configurables (generaciones, tope total de artículos, tope por artículo, modos de expansión activos, pesos de relevancia, filtros por tipo de documento/acceso abierto) — nada queda fijo en el código. Se maneja desde la CLI o desde la interfaz gráfica de escritorio, a elegir.
 
 ## Fuentes de datos
 
@@ -35,11 +35,21 @@ Guía completa, con configuración de `.env`: [docs/instalacion.md](docs/instala
 
 ## Uso
 
+Por CLI:
+
 ```bash
 bib-expres --doi 10.1000/ejemplo --output bibliografia.bib
 ```
 
 Referencia completa de parámetros: [docs/uso.md](docs/uso.md).
+
+Por interfaz gráfica (sin terminal, DOI/arXiv/título/PDF como entrada):
+
+```bash
+bib-expres-gui
+```
+
+O, sin tener Python instalado en la máquina que la vaya a usar: construye un `.exe` standalone con `pip install -e ".[packaging]"` seguido de `pyinstaller packaging/bib-expres-gui.spec` — sale en `dist/bib-expres-gui.exe` (~13 MB, verificado que arranca solo, sin el entorno de desarrollo). Todavía no hay una descarga directa publicada — hay que construirlo. Detalles en [docs/instalacion.md](docs/instalacion.md).
 
 ## Trabajos relacionados
 
@@ -50,39 +60,39 @@ bib_exprés no es la primera herramienta para explorar bibliografía a partir de
 - **[Litmaps](https://www.litmaps.com/)** — mapea cómo evoluciona una red de citas en el tiempo, orientado a mantener revisiones de literatura actualizadas.
 - **[ASReview](https://asreview.nl/)** — open-source, pero resuelve un problema distinto: dado un conjunto grande de candidatos (p.ej. exportado de una base de datos), ayuda a priorizar cuáles cribar primero para una revisión sistemática, usando aprendizaje activo.
 
-La diferencia de bib_exprés: es una herramienta de línea de comandos y librería (no una app web), con un algoritmo de expansión y relevancia configurable y transparente, cuya salida es directamente un fichero de bibliografía (BibTeX) listo para un gestor de referencias o LaTeX — no un grafo visual para explorar a mano.
+La diferencia de bib_exprés: es una herramienta de línea de comandos, librería y app de escritorio (no una app web), con un algoritmo de expansión y relevancia configurable y transparente, cuya salida es directamente un fichero de bibliografía (BibTeX, RIS o CSL-JSON) listo para un gestor de referencias o LaTeX — no un grafo visual para explorar a mano.
 
 ## Limitaciones
 
-- v1 solo acepta un **DOI** como entrada — ni arXiv ID, ni título, ni PDF (ver "Qué queda para v2").
 - Solo encuentra lo que **OpenAlex, Semantic Scholar o CrossRef** tengan indexado — papers muy nuevos, muy de nicho, o fuera de esas bases no van a aparecer.
 - La bibliografía es siempre un **subconjunto acotado** (por generaciones y tope de artículos), no "todo lo relacionado" — es una decisión consciente (rendimiento y respeto a las APIs), no un descuido.
 - El modo "similares" depende de tener configurada una API key de Semantic Scholar — sin ella, la expansión se queda solo con el grafo de citas de OpenAlex.
 - El score de relevancia es una **fórmula simple y transparente**, no un modelo de lenguaje ni embeddings — prioriza poder explicar por qué algo entra o no, a costa de ser menos sofisticado que un enfoque de ML.
-- BibTeX es el único formato de salida
+- El `.exe` no está firmado — Windows puede mostrar un aviso de SmartScreen la primera vez ("Más información" > "Ejecutar de todas formas").
+- No hay todavía una descarga directa del `.exe` en ningún sitio — cada quien lo construye en su máquina con PyInstaller.
+- Sin curación manual todavía: la interfaz gráfica no tiene forma de revisar y descartar candidato a candidato, solo el score de relevancia automático y los filtros de tipo/acceso abierto.
 
 ## Qué queda para v2
 
-v2 está en marcha: alcance y prioridades ya decididos, implementación por empezar. El objetivo central es que el trabajo con la terminal deje de ser un requisito.
+**Hecho y verificado**, pendiente de publicar en algún sitio descargable:
 
-**Núcleo** (sin esto no hay v2 que anunciar):
+- Interfaz gráfica de escritorio (`bib-expres-gui`) y empaquetado como `.exe` standalone.
+- Formatos de entrada adicionales: ID/URL de arXiv, título en texto libre, PDF.
+- Formatos de salida adicionales: RIS y CSL-JSON, además de BibTeX.
+- Filtros por tipo de documento y estado de acceso abierto.
 
-- Interfaz gráfica de escritorio, empaquetada como `.exe` descargable (PyInstaller o similar) — introducir el DOI/parámetros de búsqueda sin usar la CLI.
-- Curación de resultados tipo Tinder: revisar cada candidato (abstract, objetivos) y decidir guardar/descartar a mano, en vez de fiarse solo del score de relevancia automático.
+**Por hacer:**
 
-**Complementario** (cambios de librería, independientes de la GUI — pueden llegar en paralelo al núcleo o después):
-
-- Aceptar como entrada un ID/URL de arXiv, un título en texto libre, o un PDF, además del DOI de v1.
-- Formatos de salida adicionales (RIS, CSL-JSON) además de BibTeX.
-- Filtrar por tipo de documento o estado de acceso abierto — OpenAlex ya devuelve ambos datos en cada respuesta, pero v1 no los guarda ni los filtra todavía.
+- Curación de resultados tipo Tinder: revisar cada candidato (abstract) y decidir guardar/descartar a mano, en vez de fiarse solo del score de relevancia automático.
+- Publicar el `.exe` en algún sitio de descarga real (GitHub Releases + CI, o similar) — para que "descargar y listo" sea literalmente cierto y no solo "clona y construye".
 
 **Descartado por ahora:** autenticación/autorización — solo tendría sentido si esto se expusiera como servicio a terceros, y v2 sigue siendo una app de escritorio local.
 
 ## Preguntas abiertas
 
 - Los valores por defecto (`max_articles=200`, `max_fanout_per_node=20`, pesos de relevancia) son un punto de partida razonable, no un número validado — probablemente haga falta ajustarlos con casos reales.
-- Si el proyecto crece más allá de un uso personal/de equipo, falta decidir cómo se distribuye (¿PyPI? ¿solo instalación desde GitHub?).
-- Formatos de salida más allá de BibTeX (RIS, CSL-JSON...) — no descartado, simplemente no se ha planteado todavía.
+- Cómo publicar el `.exe` para que sea una descarga real (GitHub Releases, si compensa firmarlo o no, etc.) — construirlo ya funciona, publicarlo es la parte sin decidir.
+- Si el proyecto crece más allá de un uso personal/de equipo, falta decidir cómo se distribuye la parte de librería/CLI (¿PyPI? ¿solo instalación desde GitHub?).
 
 ## Licencia
 

@@ -8,13 +8,23 @@
 bib-expres --doi 10.1000/ejemplo --output bibliografia.bib
 ```
 
-Dado un DOI, genera un fichero BibTeX con la bibliografía consolidada a partir de ese paper.
+Dado un paper padre, genera un fichero con la bibliografía consolidada a partir de ese paper. También hay una [interfaz gráfica](instalacion.md#interfaz-gráfica) (`bib-expres-gui`) para quien prefiera no usar la CLI.
+
+## El paper padre: `--doi` o `--input`
+
+`--doi` es un atajo directo cuando ya sabes que es un DOI. `--input` acepta lo mismo más ID/URL de arXiv, una ruta a un PDF, o un título en texto libre — detecta el tipo solo. Si el título es ambiguo (varios candidatos parecidos), la CLI pregunta interactivamente cuál es el correcto; nunca elige uno por su cuenta.
+
+```bash
+bib-expres --input "2301.12345" --output bibliografia.bib          # arXiv
+bib-expres --input "./paper.pdf" --output bibliografia.bib         # PDF
+bib-expres --input "Attention Is All You Need" --output bibliografia.bib  # titulo, con confirmacion
+```
 
 ## Parámetros configurables
 
 | Parámetro | Qué controla | Valor por defecto |
 |---|---|---|
-| `--doi` | El paper padre del que partir (obligatorio) | — |
+| `--doi` / `--input` | El paper padre del que partir (uno de los dos es obligatorio) | — |
 | `--generations` | Cuántos "saltos" de expansión desde el paper padre (1-5) | 2 |
 | `--max-articles` | Tope total de artículos en la bibliografía final | 200 |
 | `--max-fanout` | Tope de artículos nuevos a traer por cada paper individual | 20 |
@@ -23,7 +33,10 @@ Dado un DOI, genera un fichero BibTeX con la bibliografía consolidada a partir 
 | `--weight-topic` | Peso del solapamiento temático en el score de relevancia | 1.0 |
 | `--weight-citations` | Peso de las citas (normalizadas) en el score | 0.2 |
 | `--weight-recency` | Peso de la recencia en el score | 0.1 |
-| `--output` | Fichero de salida en formato BibTeX | `bibliografia.bib` |
+| `--doc-types` | Tipos de documento permitidos, separados por coma (p.ej. `article,preprint`) — vocabulario de OpenAlex, sin curar | todos |
+| `--open-access-only` | Solo incluir artículos de acceso abierto | desactivado |
+| `--output` | Fichero de salida | `bibliografia.bib` |
+| `--format` | Formato de salida: `bibtex`, `ris` o `csljson` | se infiere de la extensión de `--output`, o `bibtex` |
 
 El modo `similar` requiere tener configurada `SEMANTIC_SCHOLAR_API_KEY` (ver [instalación](instalacion.md)) — sin ella funciona igual, pero con un rate limit mucho más bajo (la CLI avisa si detecta esta combinación).
 
@@ -39,7 +52,7 @@ bib-expres --doi 10.1000/ejemplo \
 
 ## Salida
 
-Un fichero `.bib` estándar, importable directamente en Zotero, Mendeley, JabRef o LaTeX (`\bibliography{...}`).
+BibTeX (`.bib`), RIS (`.ris`) o CSL-JSON (`.json`), según `--format` o la extensión de `--output`. Los tres son estándares, importables directamente en Zotero, Mendeley, JabRef o LaTeX (`\bibliography{...}` para BibTeX).
 
 **Dónde encontrarlo al terminar**: en la ruta que le des a `--output`, o en `bibliografia.bib` dentro del directorio desde el que ejecutaste el comando si no lo especificas. El programa no lo abre ni lo mueve a ningún sitio — simplemente ahí queda, esperando a que lo cojas (para importarlo en tu gestor de referencias, subirlo a otro sitio, lo que necesites).
 
