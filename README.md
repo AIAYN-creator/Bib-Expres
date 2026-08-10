@@ -59,6 +59,7 @@ La diferencia de bib_exprés: es una herramienta de línea de comandos y librer�
 - La bibliografía es siempre un **subconjunto acotado** (por generaciones y tope de artículos), no "todo lo relacionado" — es una decisión consciente (rendimiento y respeto a las APIs), no un descuido.
 - El modo "similares" depende de tener configurada una API key de Semantic Scholar — sin ella, la expansión se queda solo con el grafo de citas de OpenAlex.
 - El score de relevancia es una **fórmula simple y transparente**, no un modelo de lenguaje ni embeddings — prioriza poder explicar por qué algo entra o no, a costa de ser menos sofisticado que un enfoque de ML.
+- BibTeX es el único formato de salida
 
 ## Qué queda para v2
 
@@ -66,6 +67,7 @@ La diferencia de bib_exprés: es una herramienta de línea de comandos y librer�
 - Filtrar por tipo de documento o estado de acceso abierto — los datos ya se guardan, pero v1 no filtra por ellos.
 - Hacer una interfaz de usuario más "beginner friendly"
 - Si algún día se expone como servicio para terceros (no solo CLI/librería local), añadir autenticación/autorización — hoy no aplica porque todo corre en local.
+- Configuración a varios formatos de salida
 
 ## Preguntas abiertas
 
