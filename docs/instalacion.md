@@ -1,5 +1,13 @@
 # Instalación
 
+## Descargar el `.exe` (recomendado si no vas a usar la CLI)
+
+**[Descarga `bib-expres-gui.exe` desde Releases](https://github.com/AIAYN-creator/Bib-Expres/releases/latest)** (~15 MB) y ejecútalo — no hace falta instalar Python ni nada más. Ese enlace apunta siempre a la última versión publicada.
+
+Windows puede avisar la primera vez porque el `.exe` no está firmado ("Windows protegió tu PC" → "Más información" → "Ejecutar de todas formas") — es un aviso conocido, no significa que algo vaya mal.
+
+El resto de esta página es para quien quiera la CLI, tocar el código, o construir el `.exe` en su propia máquina en vez de descargarlo.
+
 ## Requisitos
 
 - Python 3.10 o superior.
@@ -47,9 +55,9 @@ Abre una ventana de escritorio (usa el motor web del propio sistema — WebView2
 
 Probada de principio a fin con clics reales (no solo con tests automáticos): resolver un paper, ajustar parámetros, buscar, curar candidatos y exportar, todo funcionando.
 
-## Construir el `.exe` standalone
+## Construir el `.exe` standalone tú mismo
 
-Para usarlo en una máquina sin Python instalado. Requiere haber clonado el repo (no hay todavía una descarga directa publicada):
+Alternativa a descargarlo de Releases (arriba) — para verificar el build, modificar el código, o generarlo en una plataforma sin release publicado. Requiere haber clonado el repo:
 
 ```bash
 pip install -e ".[packaging]"

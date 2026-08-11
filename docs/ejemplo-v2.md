@@ -96,4 +96,4 @@ Reconstruido de cero para esta validación (con curación tipo Tinder ya incluid
 - [x] README y documentación de usuario actualizados para el perfil no técnico.
 - [x] Sin credenciales ni secretos nuevos expuestos por el `.exe` — verificado arriba, no solo asumido.
 
-Con esto, v2 está funcionalmente completo según `alcance-v2`, con las 6 condiciones cerradas: validado con datos reales (esta página) y con una sesión completa de clics reales dentro de la ventana del `.exe` — identificar paper, ajustar parámetros, buscar, curar candidatos y exportar. Lo único que queda es decidir cómo publicar el `.exe` en un sitio de descarga real, que es una decisión de distribución, no de si la herramienta funciona.
+Con esto, v2 está completo según `alcance-v2`, con las 6 condiciones cerradas: validado con datos reales (esta página), con una sesión completa de clics reales dentro de la ventana del `.exe` — identificar paper, ajustar parámetros, buscar, curar candidatos y exportar — y publicado como descarga directa en [GitHub Releases](https://github.com/AIAYN-creator/Bib-Expres/releases/latest).
