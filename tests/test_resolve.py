@@ -129,6 +129,32 @@ def test_resolve_input_arxiv_resolves_via_constructed_doi():
     assert result.openalex_id == "W1"
 
 
+def test_resolve_input_arxiv_unresolved_gives_actionable_message():
+    # hallazgo real en validacion-e2e-v2: el DOI de arXiv es valido pero
+    # OpenAlex/CrossRef solo indexan por DOI *principal* -- si el paper se
+    # publico despues en otro sitio con su propio DOI, esta busqueda falla
+    # aunque el DOI de arXiv exista de verdad. El mensaje debe explicar esto,
+    # no limitarse a repetir "DOI no encontrado" como si el usuario hubiera
+    # escrito un DOI a mano.
+    with pytest.raises(DOIResolutionError, match="Prueba a buscarlo por su titulo"):
+        resolve_input(
+            "1706.03762",
+            openalex_client=_FakeOpenAlex(None),
+            crossref_client=_FakeCrossref(None),
+        )
+
+
+def test_resolve_input_plain_doi_unresolved_keeps_generic_message():
+    # el mismo fallo con un DOI tecleado a mano no debe mencionar arXiv
+    with pytest.raises(DOIResolutionError) as exc_info:
+        resolve_input(
+            "10.1/nope",
+            openalex_client=_FakeOpenAlex(None),
+            crossref_client=_FakeCrossref(None),
+        )
+    assert "arXiv" not in str(exc_info.value)
+
+
 def test_resolve_input_free_text_raises_title_search_required():
     with pytest.raises(TitleSearchRequired) as exc_info:
         resolve_input("Attention Is All You Need")

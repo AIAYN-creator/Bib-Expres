@@ -139,10 +139,29 @@ def resolve_input(
             raise TitleSearchRequired(pdf_title_guess or Path(candidate).stem)
         candidate = pdf_doi
 
-    doi = _looks_like_doi(candidate) or normalize_arxiv_to_doi(candidate)
+    arxiv_doi = normalize_arxiv_to_doi(candidate)
+    doi = _looks_like_doi(candidate) or arxiv_doi
     if doi is not None:
-        return resolve_root_paper(
-            doi, openalex_client=openalex_client, crossref_client=crossref_client
-        )
+        try:
+            return resolve_root_paper(
+                doi, openalex_client=openalex_client, crossref_client=crossref_client
+            )
+        except DOIResolutionError:
+            if doi == arxiv_doi:
+                # Hallazgo real en validacion-e2e-v2: el DOI de arXiv es valido de
+                # verdad (resuelve en doi.org), pero OpenAlex/CrossRef solo buscan
+                # por el DOI *principal* de un trabajo -- si el paper se publico
+                # despues en una revista/conferencia con su propio DOI, ese pasa a
+                # ser el principal y el de arXiv queda como ubicacion secundaria,
+                # invisible para esta busqueda. Le pasa a bastantes papers de ML
+                # conocidos (el de "Attention Is All You Need" es un ejemplo real).
+                raise DOIResolutionError(
+                    f"El DOI de arXiv construido para '{candidate}' ('{arxiv_doi}') "
+                    "es valido, pero OpenAlex/CrossRef no lo tienen como DOI "
+                    "principal de ese trabajo -- pasa cuando el paper se publico "
+                    "despues en una revista o conferencia con su propio DOI. "
+                    "Prueba a buscarlo por su titulo en su lugar."
+                ) from None
+            raise
 
     raise TitleSearchRequired(candidate)
