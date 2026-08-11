@@ -2,7 +2,7 @@
 
 Herramienta de snowballing bibliográfico: a partir de un paper padre (DOI), expande generaciones de referencias, citas y artículos similares, y consolida una bibliografía filtrada por relevancia.
 
-**Estado: v1 funciona de principio a fin — 200 artículos en ~22 segundos** en la validación real ([ver ejemplo](docs/ejemplo.md)). **v2 también valida de principio a fin** — GUI, `.exe` standalone, entrada por arXiv/título/PDF, RIS/CSL-JSON y filtros, todo contra datos reales, con hallazgos incluidos ([ver ejemplo de v2](docs/ejemplo-v2.md)). Queda pendiente publicar el `.exe` en algún sitio de descarga real, ver [Qué queda para v2](#qué-queda-para-v2).
+**Estado: v1 funciona de principio a fin — 200 artículos en ~22 segundos** en la validación real ([ver ejemplo](docs/ejemplo.md)). **v2 también funciona de principio a fin** — GUI, curación tipo Tinder, `.exe` standalone, entrada por arXiv/título/PDF, RIS/CSL-JSON y filtros, validado tanto contra datos reales como con clics reales dentro de la ventana ([ver ejemplo de v2](docs/ejemplo-v2.md)). Queda pendiente publicar el `.exe` en algún sitio de descarga real, ver [Qué queda para v2](#qué-queda-para-v2).
 
 ## Cómo funciona
 
@@ -75,7 +75,7 @@ La diferencia de bib_exprés: es una herramienta de línea de comandos, librerí
 
 ## Qué queda para v2
 
-**Hecho y validado contra datos reales**, pendiente de publicar en algún sitio descargable:
+**Hecho, validado contra datos reales y probado a mano dentro de la ventana**, pendiente de publicar en algún sitio descargable:
 
 - Interfaz gráfica de escritorio (`bib-expres-gui`) y empaquetado como `.exe` standalone.
 - Curación de resultados tipo Tinder: revisar cada candidato (abstract) y decidir guardar/descartar a mano.
@@ -86,7 +86,6 @@ La diferencia de bib_exprés: es una herramienta de línea de comandos, librerí
 **Por hacer:**
 
 - Publicar el `.exe` en algún sitio de descarga real (GitHub Releases + CI, o similar) — para que "descargar y listo" sea literalmente cierto y no solo "clona y construye".
-- Probar la curación (y el resto de la GUI) con clics de verdad dentro de la ventana nativa — validado por unidad y por CLI contra datos reales, pero nadie ha hecho clic todavía en la pantalla de guardar/descartar en sí.
 
 **Descartado por ahora:** autenticación/autorización — solo tendría sentido si esto se expusiera como servicio a terceros, y v2 sigue siendo una app de escritorio local.
 

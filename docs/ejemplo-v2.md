@@ -91,9 +91,9 @@ Reconstruido de cero para esta validación (con curación tipo Tinder ya incluid
 
 - [x] Existe un `.exe` descargable que no requiere Python ni terminal instalados — construido y verificado dos noches distintas, arranca standalone.
 - [x] Desde la GUI: introducir un DOI (u otro formato aceptado) y los parámetros de búsqueda, lanzar la búsqueda y ver los candidatos — confirmado en vivo por el usuario (avanza a parámetros, "búsqueda muy eficiente").
-- [x] Poder revisar los candidatos uno a uno (abstract) y decidir guardar/descartar antes de exportar — implementado y probado por unidad; **la interacción real dentro de la ventana nativa no se ha probado a mano todavía** (igual que el resto de la GUI, no hay forma de clicar una ventana de escritorio desde este entorno).
-- [x] Exportar el resultado final a fichero — BibTeX, RIS y CSL-JSON, los tres probados contra datos reales en esta misma página.
+- [x] Poder revisar los candidatos uno a uno (abstract) y decidir guardar/descartar antes de exportar — implementado, probado por unidad, y **probado a mano dentro de la ventana real por el usuario, con clics de verdad** (build reconstruido de cero para esta prueba, con curación ya incluida).
+- [x] Exportar el resultado final a fichero — BibTeX, RIS y CSL-JSON, los tres probados contra datos reales en esta misma página, y el flujo completo de exportar también confirmado a mano desde la GUI.
 - [x] README y documentación de usuario actualizados para el perfil no técnico.
 - [x] Sin credenciales ni secretos nuevos expuestos por el `.exe` — verificado arriba, no solo asumido.
 
-Con esto, v2 está funcionalmente completo según `alcance-v2`. El único hueco real es el de siempre: nadie ha hecho clic todavía dentro de la ventana nativa de verdad más allá de la primera prueba del usuario (resolución + parámetros) — curación y exportación desde la GUI en sí quedan pendientes de esa prueba manual.
+Con esto, v2 está funcionalmente completo según `alcance-v2`, con las 6 condiciones cerradas: validado con datos reales (esta página) y con una sesión completa de clics reales dentro de la ventana del `.exe` — identificar paper, ajustar parámetros, buscar, curar candidatos y exportar. Lo único que queda es decidir cómo publicar el `.exe` en un sitio de descarga real, que es una decisión de distribución, no de si la herramienta funciona.

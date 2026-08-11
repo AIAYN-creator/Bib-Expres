@@ -43,7 +43,9 @@ Alternativa a la CLI para quien prefiera no usar terminal. Con el paquete instal
 bib-expres-gui
 ```
 
-Abre una ventana de escritorio (usa el motor web del propio sistema — WebView2 en Windows, ya viene con Windows 10/11) con un formulario para el paper de entrada (DOI, ID/URL de arXiv, título o PDF), los parámetros de búsqueda, y exportación a BibTeX/RIS/CSL-JSON. El email de contacto y la API key de Semantic Scholar también se pueden configurar desde dentro (icono de Ajustes), sin tocar el `.env` a mano.
+Abre una ventana de escritorio (usa el motor web del propio sistema — WebView2 en Windows, ya viene con Windows 10/11) con un formulario para el paper de entrada (DOI, ID/URL de arXiv, título o PDF), los parámetros de búsqueda, y exportación a BibTeX/RIS/CSL-JSON. Entre la búsqueda y la exportación hay una pantalla opcional de curación tipo Tinder: revisar cada candidato (con su abstract) y decidir guardar o descartar uno a uno, con botones, flechas del teclado o arrastrando la tarjeta. El email de contacto y la API key de Semantic Scholar también se pueden configurar desde dentro (icono de Ajustes), sin tocar el `.env` a mano.
+
+Probada de principio a fin con clics reales (no solo con tests automáticos): resolver un paper, ajustar parámetros, buscar, curar candidatos y exportar, todo funcionando.
 
 ## Construir el `.exe` standalone
 
@@ -54,7 +56,7 @@ pip install -e ".[packaging]"
 pyinstaller packaging/bib-expres-gui.spec
 ```
 
-El resultado queda en `dist/bib-expres-gui.exe` (~13 MB) — un único fichero, sin dependencias externas salvo el WebView2 que Windows 10/11 ya trae de fábrica. Como no está firmado, Windows puede mostrar un aviso de SmartScreen la primera vez ("Más información" > "Ejecutar de todas formas").
+El resultado queda en `dist/bib-expres-gui.exe` (~15 MB) — un único fichero, sin dependencias externas salvo el WebView2 que Windows 10/11 ya trae de fábrica. Como no está firmado, Windows puede mostrar un aviso de SmartScreen la primera vez ("Más información" > "Ejecutar de todas formas"), y el antivirus puede bloquearlo brevemente justo al terminar de construirlo (pasa de verdad, no es solo teórico).
 
 ## Ejecutar los tests
 
