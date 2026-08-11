@@ -5,6 +5,7 @@ import sys
 
 from dotenv import load_dotenv
 
+from . import __version__
 from .config import ExpansionMode, InstallConfig, RelevanceWeights, SearchConfig
 from .expansion import expand
 from .export import infer_format, write
@@ -48,7 +49,7 @@ def _build_parser() -> argparse.ArgumentParser:
         prog="bib-expres",
         description="Snowballing bibliografico a partir de un paper padre (DOI).",
     )
-    parser.add_argument("--version", action="version", version="0.1.0")
+    parser.add_argument("--version", action="version", version=__version__)
     parser.add_argument("--doi", help="DOI del paper padre (atajo directo, sin autodeteccion)")
     parser.add_argument(
         "--input",

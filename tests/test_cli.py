@@ -5,6 +5,7 @@ import argparse
 
 import pytest
 
+from bib_expres import __version__
 from bib_expres.cli import _build_parser, _confirm_title_candidate, _parse_doc_types, _parse_modes
 from bib_expres.config import ExpansionMode
 from bib_expres.models import DiscoveryMode, Paper
@@ -17,7 +18,7 @@ def test_version():
         text=True,
     )
     assert result.returncode == 0
-    assert "0.1.0" in result.stdout
+    assert __version__ in result.stdout
 
 
 def test_missing_doi_and_input_fails():
