@@ -20,6 +20,8 @@ bib-expres --input "./paper.pdf" --output bibliografia.bib         # PDF
 bib-expres --input "Attention Is All You Need" --output bibliografia.bib  # titulo, con confirmacion
 ```
 
+**Límite conocido del ID de arXiv** (confirmado con datos reales, ver [docs/ejemplo-v2.md](ejemplo-v2.md)): funciona resolviendo el DOI que arXiv asigna automáticamente al paper, pero si ese paper se publicó después en una revista o conferencia con su propio DOI (habitual en papers de ML conocidos — "Attention Is All You Need" es un ejemplo real), OpenAlex indexa el otro DOI como principal y la búsqueda por ID de arXiv falla con un mensaje que sugiere probar por título. Buscar por título, como en el tercer ejemplo de arriba, no tiene este problema.
+
 ## Parámetros configurables
 
 | Parámetro | Qué controla | Valor por defecto |
@@ -37,6 +39,8 @@ bib-expres --input "Attention Is All You Need" --output bibliografia.bib  # titu
 | `--open-access-only` | Solo incluir artículos de acceso abierto | desactivado |
 | `--output` | Fichero de salida | `bibliografia.bib` |
 | `--format` | Formato de salida: `bibtex`, `ris` o `csljson` | se infiere de la extensión de `--output`, o `bibtex` |
+
+`--doc-types` y `--open-access-only` no afectan al paper padre — este nunca se descarta (ni por relevancia, ni por tipo, ni por acceso abierto), siempre aparece en el resultado. Confirmado con datos reales en [docs/ejemplo-v2.md](ejemplo-v2.md).
 
 El modo `similar` requiere tener configurada `SEMANTIC_SCHOLAR_API_KEY` (ver [instalación](instalacion.md)) — sin ella funciona igual, pero con un rate limit mucho más bajo (la CLI avisa si detecta esta combinación).
 

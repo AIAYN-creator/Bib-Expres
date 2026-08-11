@@ -2,7 +2,7 @@
 
 Herramienta de snowballing bibliográfico: a partir de un paper padre (DOI), expande generaciones de referencias, citas y artículos similares, y consolida una bibliografía filtrada por relevancia.
 
-**Estado: v1 funciona de principio a fin — 200 artículos en ~22 segundos** en la validación real ([ver ejemplo completo](docs/ejemplo.md)). La interfaz gráfica de v2 ya funciona de principio a fin también, `.exe` standalone incluido (se construye en local, todavía sin descarga pública) — falta la curación manual tipo Tinder, ver [Qué queda para v2](#qué-queda-para-v2).
+**Estado: v1 funciona de principio a fin — 200 artículos en ~22 segundos** en la validación real ([ver ejemplo](docs/ejemplo.md)). **v2 también valida de principio a fin** — GUI, `.exe` standalone, entrada por arXiv/título/PDF, RIS/CSL-JSON y filtros, todo contra datos reales, con hallazgos incluidos ([ver ejemplo de v2](docs/ejemplo-v2.md)). Queda pendiente publicar el `.exe` en algún sitio de descarga real, ver [Qué queda para v2](#qué-queda-para-v2).
 
 ## Cómo funciona
 
@@ -49,7 +49,7 @@ Por interfaz gráfica (sin terminal, DOI/arXiv/título/PDF como entrada):
 bib-expres-gui
 ```
 
-O, sin tener Python instalado en la máquina que la vaya a usar: construye un `.exe` standalone con `pip install -e ".[packaging]"` seguido de `pyinstaller packaging/bib-expres-gui.spec` — sale en `dist/bib-expres-gui.exe` (~13 MB, verificado que arranca solo, sin el entorno de desarrollo). Todavía no hay una descarga directa publicada — hay que construirlo. Detalles en [docs/instalacion.md](docs/instalacion.md).
+O, sin tener Python instalado en la máquina que la vaya a usar: construye un `.exe` standalone con `pip install -e ".[packaging]"` seguido de `pyinstaller packaging/bib-expres-gui.spec` — sale en `dist/bib-expres-gui.exe` (~15 MB, verificado que arranca solo, sin el entorno de desarrollo, sin secretos embebidos). Todavía no hay una descarga directa publicada — hay que construirlo. Detalles en [docs/instalacion.md](docs/instalacion.md).
 
 ## Trabajos relacionados
 
@@ -68,23 +68,25 @@ La diferencia de bib_exprés: es una herramienta de línea de comandos, librerí
 - La bibliografía es siempre un **subconjunto acotado** (por generaciones y tope de artículos), no "todo lo relacionado" — es una decisión consciente (rendimiento y respeto a las APIs), no un descuido.
 - El modo "similares" depende de tener configurada una API key de Semantic Scholar — sin ella, la expansión se queda solo con el grafo de citas de OpenAlex.
 - El score de relevancia es una **fórmula simple y transparente**, no un modelo de lenguaje ni embeddings — prioriza poder explicar por qué algo entra o no, a costa de ser menos sofisticado que un enfoque de ML.
-- El `.exe` no está firmado — Windows puede mostrar un aviso de SmartScreen la primera vez ("Más información" > "Ejecutar de todas formas").
+- El `.exe` no está firmado — Windows puede mostrar un aviso de SmartScreen la primera vez ("Más información" > "Ejecutar de todas formas"), y el antivirus puede bloquearlo brevemente nada más construirlo (visto de verdad al generar el build, no solo en teoría).
 - No hay todavía una descarga directa del `.exe` en ningún sitio — cada quien lo construye en su máquina con PyInstaller.
-- Sin curación manual todavía: la interfaz gráfica no tiene forma de revisar y descartar candidato a candidato, solo el score de relevancia automático y los filtros de tipo/acceso abierto.
+- Buscar el paper padre por ID de arXiv falla si ese paper se publicó después en otro sitio con su propio DOI (le pasa a bastantes papers de ML conocidos) — buscarlo por título no tiene este problema. Detalle en [docs/ejemplo-v2.md](docs/ejemplo-v2.md).
+- El paper padre nunca se descarta por los filtros de tipo de documento/acceso abierto (tampoco por relevancia) — siempre aparece en el resultado final, sea cual sea el filtro pedido.
 
 ## Qué queda para v2
 
-**Hecho y verificado**, pendiente de publicar en algún sitio descargable:
+**Hecho y validado contra datos reales**, pendiente de publicar en algún sitio descargable:
 
 - Interfaz gráfica de escritorio (`bib-expres-gui`) y empaquetado como `.exe` standalone.
+- Curación de resultados tipo Tinder: revisar cada candidato (abstract) y decidir guardar/descartar a mano.
 - Formatos de entrada adicionales: ID/URL de arXiv, título en texto libre, PDF.
 - Formatos de salida adicionales: RIS y CSL-JSON, además de BibTeX.
 - Filtros por tipo de documento y estado de acceso abierto.
 
 **Por hacer:**
 
-- Curación de resultados tipo Tinder: revisar cada candidato (abstract) y decidir guardar/descartar a mano, en vez de fiarse solo del score de relevancia automático.
 - Publicar el `.exe` en algún sitio de descarga real (GitHub Releases + CI, o similar) — para que "descargar y listo" sea literalmente cierto y no solo "clona y construye".
+- Probar la curación (y el resto de la GUI) con clics de verdad dentro de la ventana nativa — validado por unidad y por CLI contra datos reales, pero nadie ha hecho clic todavía en la pantalla de guardar/descartar en sí.
 
 **Descartado por ahora:** autenticación/autorización — solo tendría sentido si esto se expusiera como servicio a terceros, y v2 sigue siendo una app de escritorio local.
 
