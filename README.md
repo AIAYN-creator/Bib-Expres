@@ -89,6 +89,13 @@ La diferencia de bib_exprés: es una herramienta de línea de comandos, librerí
 
 **Descartado por ahora:** autenticación/autorización — solo tendría sentido si esto se expusiera como servicio a terceros, y v2 sigue siendo una app de escritorio local.
 
+## Qué queda para v3
+
+Todavía sin planificar en detalle — apuntado aquí como idea, igual que empezó v2:
+
+- **Filtro por idioma** — solo artículos en español, o en todos (al estilo Google Scholar). OpenAlex ya devuelve el idioma de cada artículo en sus respuestas (`language`, código ISO como `en`/`es` — comprobado en directo), así que el dato está disponible en la fuente, pero `bib_exprés` no lo guarda ni lo filtra todavía.
+- **Interfaz gráfica en inglés o castellano, a elegir** — hoy todos los textos de la GUI (`gui/static/`) están fijos en español.
+
 ## Preguntas abiertas
 
 - Los valores por defecto (`max_articles=200`, `max_fanout_per_node=20`, pesos de relevancia) son un punto de partida razonable, no un número validado — probablemente haga falta ajustarlos con casos reales.
