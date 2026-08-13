@@ -1,6 +1,6 @@
 [project]
 name = "bib-expres"
-version = "2.0.0"
+version = "2.1.0"
 description = "Herramienta de snowballing bibliografico a partir de un paper padre"
 requires-python = ">=3.10"
 license = {text = "MIT"}

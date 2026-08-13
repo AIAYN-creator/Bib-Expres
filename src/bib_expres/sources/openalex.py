@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from urllib.parse import quote
+
 import requests
 
 from ..models import Concept, DiscoveryMode, Paper
@@ -82,13 +84,13 @@ class OpenAlexClient:
 
     def resolve_doi(self, doi: str) -> Paper | None:
         try:
-            raw = self._client.get(f"/works/doi:{doi}")
+            raw = self._client.get(f"/works/doi:{quote(doi, safe='')}")
         except requests.RequestException:
             return None
         return _parse_work(raw)
 
     def get_references(self, paper: Paper, generation: int) -> list[Paper]:
-        raw = self._client.get(f"/works/{paper.openalex_id}")
+        raw = self._client.get(f"/works/{quote(paper.openalex_id, safe='')}")
         referenced_ids = [_strip_openalex_id(u) for u in raw.get("referenced_works", [])]
         return self._fetch_by_ids(referenced_ids, generation, DiscoveryMode.REFERENCE)
 

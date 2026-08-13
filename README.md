@@ -84,6 +84,14 @@ La diferencia de bib_exprés: es una herramienta de línea de comandos, librerí
 
 **Descartado por ahora:** autenticación/autorización — solo tendría sentido si esto se expusiera como servicio a terceros, y v2 sigue siendo una app de escritorio local.
 
+## v2.1.0 — parche de seguridad: DOIs sin escapar en las peticiones HTTP
+
+Una auditoría de seguridad encontró que `bib_exprés` metía el DOI directamente en el path de la URL al pedir metadata a OpenAlex, CrossRef y Semantic Scholar, sin escapar caracteres especiales. El problema: un DOI válido puede contener `/`, `:`, `;`, `(` y `)` — los mismos caracteres que delimitan un path HTTP — así que un DOI pensado para manipular la ruta podía alterar la petición real enviada a esas APIs en vez de limitarse a identificar un paper. El caso más delicado estaba en el modo "similares": el DOI de cada candidato viene tal cual de la respuesta de Semantic Scholar (una fuente externa), sin pasar por ninguna validación local, antes de usarse para pedir ese paper a OpenAlex.
+
+**Arreglado**: los cuatro sitios donde un DOI (o el ID interno de OpenAlex de un paper) se interpolaba en el path de una petición ahora lo escapan primero (`urllib.parse.quote`). Se comprobó contra las tres APIs reales que un DOI normal con `/` se sigue resolviendo exactamente igual que antes del parche — el arreglo no cambia nada del comportamiento habitual, solo cierra la vía para manipular la ruta.
+
+No hace falta ninguna acción manual: actualizar a esta versión (o al `.exe` publicado en Releases) ya incluye el parche, sin cambios de configuración ni de comportamiento visible.
+
 ## Qué queda para v3
 
 Todavía sin planificar en detalle — apuntado aquí como idea, igual que empezó v2:

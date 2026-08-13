@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import dataclasses
+from urllib.parse import quote
 
 from ..models import DiscoveryMode, Paper
 from .base import SourceClient
@@ -35,7 +36,7 @@ class SemanticScholarClient:
             return []
 
         raw = self._client.get(
-            f"/recommendations/v1/papers/forpaper/DOI:{paper.doi}",
+            f"/recommendations/v1/papers/forpaper/DOI:{quote(paper.doi, safe='')}",
             params={"fields": "externalIds", "limit": limit},
         )
 

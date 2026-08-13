@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from urllib.parse import quote
+
 import requests
 
 from ..models import DiscoveryMode, Paper
@@ -48,7 +50,7 @@ class CrossrefClient:
 
     def resolve_doi(self, doi: str) -> Paper | None:
         try:
-            raw = self._client.get(f"/works/{doi}")
+            raw = self._client.get(f"/works/{quote(doi, safe='')}")
         except requests.RequestException:
             return None
         return _parse_work(raw.get("message", raw))
