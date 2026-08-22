@@ -92,6 +92,12 @@ Una auditoría de seguridad encontró que `bib_exprés` metía el DOI directamen
 
 No hace falta ninguna acción manual: actualizar a esta versión (o al `.exe` publicado en Releases) ya incluye el parche, sin cambios de configuración ni de comportamiento visible.
 
+## v2.1.1 — icono propio para `bib-expres-gui.exe`
+
+El `.exe` de la GUI salía con el icono genérico de PyInstaller: el `.spec` no declaraba ninguno, y el único parámetro de icono de `pywebview` (`webview.start(icon=...)`) solo funciona en GTK/QT, no hace nada en Windows.
+
+Se añadió `packaging/icon.ico` (nodo raíz ramificándose en tres — el snowballing de citas que hace la app) referenciado desde `EXE(icon=...)` en `packaging/bib-expres-gui.spec`. Sin cambios de comportamiento: solo el icono en Explorador, menú Inicio, barra de tareas y la propia ventana.
+
 ## Qué queda para v3
 
 Todavía sin planificar en detalle — apuntado aquí como idea, igual que empezó v2:
