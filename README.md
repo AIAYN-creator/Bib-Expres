@@ -1,6 +1,6 @@
 # bib_exprés
 
-<img src="packaging/icon.png" align="right" width="120" alt="Logo de bib-exprés: un nodo raíz ramificándose en tres">
+<img src="packaging/icon.png" align="right" width="125" alt="Logo de bib-exprés: un nodo raíz ramificándose en tres">
 
 Herramienta de snowballing bibliográfico: a partir de un paper padre (DOI), expande generaciones de referencias, citas y artículos similares, y consolida una bibliografía filtrada por relevancia.
 
