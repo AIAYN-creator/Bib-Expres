@@ -1,5 +1,7 @@
 # bib_exprés
 
+<img src="packaging/icon.png" align="right" width="120" alt="Logo de bib-exprés: un nodo raíz ramificándose en tres">
+
 Herramienta de snowballing bibliográfico: a partir de un paper padre (DOI), expande generaciones de referencias, citas y artículos similares, y consolida una bibliografía filtrada por relevancia.
 
 **Estado: v1 funciona de principio a fin — 200 artículos en ~22 segundos** en la validación real ([ver ejemplo](docs/ejemplo.md)). **v2 también funciona de principio a fin** — GUI, curación tipo Tinder, `.exe` standalone, entrada por arXiv/título/PDF, RIS/CSL-JSON y filtros, validado tanto contra datos reales como con clics reales dentro de la ventana ([ver ejemplo de v2](docs/ejemplo-v2.md)). **[Descarga directa del `.exe` en Releases](https://github.com/AIAYN-creator/Bib-Expres/releases/latest)** — sin instalar Python.
