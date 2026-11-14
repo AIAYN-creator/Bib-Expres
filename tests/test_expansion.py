@@ -155,3 +155,72 @@ def test_expand_prioritises_higher_relevance_within_fanout_cap():
     ids = {p.openalex_id for p in result}
     assert "relevant" in ids
     assert "irrelevant" not in ids
+
+
+# -- progreso y cancelacion ----------------------------------------------------
+
+
+def test_expand_reports_progress_and_finishes():
+    root = _paper("root")
+    refs = [_paper(f"r{i}") for i in range(3)]
+    openalex = _FakeOpenAlex(references={"root": refs})
+    events = []
+
+    config = SearchConfig(generations=1, max_articles=10, modes={ExpansionMode.REFERENCES})
+    expand(root, config, openalex_client=openalex, on_progress=events.append)
+
+    assert events, "debe emitir al menos un evento"
+    assert events[0].current_title == "Paper root"
+    assert events[0].found == 1
+    assert all(e.max_articles == 10 for e in events)
+    last = events[-1]
+    assert last.finished and not last.cancelled
+    # el grafo se agota antes del tope: found < max_articles al acabar
+    assert last.found == 4 < last.max_articles
+
+
+def test_expand_progress_found_never_decreases():
+    root = _paper("root")
+    gen1 = [_paper(f"a{i}") for i in range(3)]
+    gen2 = {f"a{i}": [_paper(f"b{i}{j}") for j in range(2)] for i in range(3)}
+    openalex = _FakeOpenAlex(references={"root": gen1, **gen2})
+    events = []
+
+    config = SearchConfig(generations=2, max_articles=50, modes={ExpansionMode.REFERENCES})
+    expand(root, config, openalex_client=openalex, on_progress=events.append)
+
+    founds = [e.found for e in events]
+    assert founds == sorted(founds)
+    assert {e.generation for e in events if not e.finished} == {1, 2}
+
+
+def test_expand_cancel_returns_partial_results():
+    root = _paper("root")
+    gen1 = [_paper(f"a{i}") for i in range(3)]
+    gen2 = {f"a{i}": [_paper(f"b{i}{j}") for j in range(2)] for i in range(3)}
+    openalex = _FakeOpenAlex(references={"root": gen1, **gen2})
+    events = []
+    calls = {"n": 0}
+
+    def cancel_after_first_node():
+        calls["n"] += 1
+        return calls["n"] > 1
+
+    config = SearchConfig(generations=2, max_articles=50, modes={ExpansionMode.REFERENCES})
+    result = expand(
+        root,
+        config,
+        openalex_client=openalex,
+        on_progress=events.append,
+        should_cancel=cancel_after_first_node,
+    )
+
+    assert {p.openalex_id for p in result} == {"root", "a0", "a1", "a2"}
+    assert events[-1].finished and events[-1].cancelled
+
+
+def test_expand_without_callbacks_still_works():
+    root = _paper("root")
+    openalex = _FakeOpenAlex(references={"root": [_paper("x")]})
+    config = SearchConfig(generations=1, max_articles=10, modes={ExpansionMode.REFERENCES})
+    assert len(expand(root, config, openalex_client=openalex)) == 2

@@ -1,13 +1,15 @@
 from __future__ import annotations
 
 import os
+import threading
+import time
 from pathlib import Path
 
 import webview
 from dotenv import load_dotenv
 
 from ..config import ExpansionMode, InstallConfig, RelevanceWeights, SearchConfig
-from ..expansion import expand
+from ..expansion import ProgressEvent, expand
 from ..export import write
 from ..models import Paper
 from ..resolve import (
@@ -113,6 +115,12 @@ class Api:
         self._root: Paper | None = None
         self._candidates: list[Paper] = []
         self._results: list[Paper] = []
+        # Estado de la busqueda en curso. search() corre en un hilo de pywebview y
+        # get_progress()/cancel_search() en otros, de ahi el lock.
+        self._progress_lock = threading.Lock()
+        self._progress: ProgressEvent | None = None
+        self._last_activity: float | None = None
+        self._cancel_requested = threading.Event()
 
     def bind_window(self, window: webview.Window) -> None:
         self._window = window
@@ -163,17 +171,55 @@ class Api:
         semantic_scholar = self._semantic_scholar or SemanticScholarClient(
             api_key=install.semantic_scholar_api_key, openalex_client=self._openalex
         )
+        self._cancel_requested.clear()
+        with self._progress_lock:
+            self._progress = ProgressEvent(
+                found=1, max_articles=config.max_articles, generation=0, current_title=None
+            )
+            self._last_activity = time.monotonic()
         self._results = expand(
             self._root,
             config,
             openalex_client=self._openalex,
             semantic_scholar_client=semantic_scholar,
+            on_progress=self._record_progress,
+            should_cancel=self._cancel_requested.is_set,
         )
         return {
             "status": "ok",
             "count": len(self._results),
+            "cancelled": self._cancel_requested.is_set(),
             "papers": [_paper_to_dict(p) for p in self._results],
         }
+
+    def _record_progress(self, event: ProgressEvent) -> None:
+        with self._progress_lock:
+            self._progress = event
+            self._last_activity = time.monotonic()
+
+    def get_progress(self) -> dict:
+        """Lo consulta la GUI cada ~0,5 s mientras dura search(). `idle_seconds`
+        (tiempo desde la ultima actividad) es lo que responde a "¿se ha caido?"."""
+        with self._progress_lock:
+            event = self._progress
+            last = self._last_activity
+        if event is None:
+            return {"status": "idle"}
+        return {
+            "status": "finished" if event.finished else "running",
+            "found": event.found,
+            "max_articles": event.max_articles,
+            "generation": event.generation,
+            "current_title": event.current_title,
+            "cancelled": event.cancelled,
+            "idle_seconds": round(time.monotonic() - last, 1) if last is not None else 0.0,
+        }
+
+    def cancel_search(self) -> dict:
+        """Pide parar; search() termina en cuanto acabe el paper que esta
+        procesando y devuelve lo encontrado hasta ese momento."""
+        self._cancel_requested.set()
+        return {"status": "ok"}
 
     # -- Pantalla 5: exportar --------------------------------------------------
 

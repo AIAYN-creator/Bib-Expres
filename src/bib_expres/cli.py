@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 
 from . import __version__
 from .config import ExpansionMode, InstallConfig, RelevanceWeights, SearchConfig
-from .expansion import expand
+from .expansion import ProgressEvent, expand
 from .export import infer_format, write
 from .models import Paper
 from .resolve import (
@@ -95,7 +95,30 @@ def _build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Formato de salida; por defecto se infiere de la extension de --output",
     )
+    parser.add_argument(
+        "--quiet",
+        action="store_true",
+        help="No mostrar la linea de progreso durante la busqueda",
+    )
     return parser
+
+
+_PROGRESS_WIDTH = 100
+
+
+def _print_progress(event: ProgressEvent) -> None:
+    """Una sola linea en stderr que se reescribe con \r (sin codigos ANSI, que
+    no todas las consolas de Windows entienden) -- stdout queda para el resultado."""
+    if event.finished:
+        line = ""
+    else:
+        title = (event.current_title or "")[:45]
+        line = (
+            f"{event.found}/{event.max_articles} articulos"
+            f" -- generacion {event.generation} -- {title}"
+        )
+    sys.stderr.write("\r" + line[:_PROGRESS_WIDTH].ljust(_PROGRESS_WIDTH) + ("\r" if not line else ""))
+    sys.stderr.flush()
 
 
 def _confirm_title_candidate(query: str, openalex_client: OpenAlexClient) -> Paper | None:
@@ -176,7 +199,11 @@ def main(argv: list[str] | None = None) -> int:
         root = confirmed
 
     results = expand(
-        root, config, openalex_client=openalex, semantic_scholar_client=semantic_scholar
+        root,
+        config,
+        openalex_client=openalex,
+        semantic_scholar_client=semantic_scholar,
+        on_progress=None if args.quiet else _print_progress,
     )
 
     output_format = args.format or infer_format(args.output)

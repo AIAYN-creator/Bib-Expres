@@ -297,3 +297,81 @@ def test_api_save_settings_reports_injected_lines_as_error(tmp_path, monkeypatch
     res = Api().save_settings({"CONTACT_EMAIL": "a@b.c\nOTHER_KEY=evil"})
     assert res["status"] == "error"
     assert not (tmp_path / ".env").exists()
+
+
+# -- progreso y cancelacion ----------------------------------------------------
+
+
+def test_api_get_progress_idle_before_any_search():
+    assert Api().get_progress() == {"status": "idle"}
+
+
+def test_api_get_progress_finished_after_search():
+    root = _paper()
+    refs = [_paper(openalex_id=f"R{i}", doi=f"10.1/r{i}", title=f"Ref {i}") for i in range(2)]
+    api = Api(
+        openalex_client=_FakeOpenAlex(resolve_result=root, references=refs),
+        crossref_client=_FakeCrossref(),
+    )
+    api.resolve("10.1/abc")
+    res = api.search(
+        {"generations": "1", "max_articles": "50", "modes": ["references"], "relevance_threshold": "0"}
+    )
+    assert res["status"] == "ok" and res["cancelled"] is False
+
+    progress = api.get_progress()
+    assert progress["status"] == "finished"
+    assert progress["found"] == res["count"] == 3
+    assert progress["max_articles"] == 50
+    assert progress["idle_seconds"] >= 0
+
+
+def test_api_get_progress_while_search_running_reports_current_paper():
+    """get_progress se llama desde otro hilo mientras search() sigue: simulado
+    llamandolo desde dentro del fake, a mitad de la busqueda."""
+    root = _paper(title="Root Paper")
+    seen = {}
+
+    class _SpyOpenAlex(_FakeOpenAlex):
+        def get_references(self, paper, generation):
+            seen["progress"] = api.get_progress()
+            return []
+
+    api = Api(openalex_client=_SpyOpenAlex(resolve_result=root), crossref_client=_FakeCrossref())
+    api.resolve("10.1/abc")
+    api.search({"generations": "1", "max_articles": "10", "modes": ["references"]})
+
+    assert seen["progress"]["status"] == "running"
+    assert seen["progress"]["current_title"] == "Root Paper"
+    assert seen["progress"]["generation"] == 1
+
+
+def test_api_cancel_search_returns_partial_results():
+    root = _paper()
+    refs = [_paper(openalex_id=f"R{i}", doi=f"10.1/r{i}", title=f"Ref {i}") for i in range(3)]
+
+    class _CancellingOpenAlex(_FakeOpenAlex):
+        def get_references(self, paper, generation):
+            api.cancel_search()  # el usuario pulsa Cancelar mientras se procesa el padre
+            return refs if paper.openalex_id == "W1" else []
+
+    api = Api(
+        openalex_client=_CancellingOpenAlex(resolve_result=root), crossref_client=_FakeCrossref()
+    )
+    api.resolve("10.1/abc")
+    res = api.search(
+        {"generations": "3", "max_articles": "50", "modes": ["references"], "relevance_threshold": "0"}
+    )
+    assert res["status"] == "ok"
+    assert res["cancelled"] is True
+    assert res["count"] == 4  # el padre + lo que trajo el paper en curso, nada mas
+    assert api.get_progress()["cancelled"] is True
+
+
+def test_api_new_search_clears_previous_cancel():
+    root = _paper()
+    api = Api(openalex_client=_FakeOpenAlex(resolve_result=root), crossref_client=_FakeCrossref())
+    api.resolve("10.1/abc")
+    api.cancel_search()
+    res = api.search({"generations": "1", "max_articles": "5", "modes": ["references"]})
+    assert res["cancelled"] is False

@@ -6,7 +6,14 @@ import argparse
 import pytest
 
 from bib_expres import __version__
-from bib_expres.cli import _build_parser, _confirm_title_candidate, _parse_doc_types, _parse_modes
+from bib_expres.cli import (
+    _build_parser,
+    _confirm_title_candidate,
+    _parse_doc_types,
+    _parse_modes,
+    _print_progress,
+)
+from bib_expres.expansion import ProgressEvent
 from bib_expres.config import ExpansionMode
 from bib_expres.models import DiscoveryMode, Paper
 
@@ -121,3 +128,23 @@ def test_doc_types_and_open_access_default_to_no_filter():
     args = parser.parse_args(["--doi", "10.1/x"])
     assert args.doc_types is None
     assert args.open_access_only is False
+
+
+def test_quiet_flag_defaults_off():
+    parser = _build_parser()
+    assert parser.parse_args(["--doi", "10.1/x"]).quiet is False
+    assert parser.parse_args(["--doi", "10.1/x", "--quiet"]).quiet is True
+
+
+def test_print_progress_writes_single_line_to_stderr(capsys):
+    _print_progress(ProgressEvent(found=12, max_articles=200, generation=2, current_title="Some Paper"))
+    out, err = capsys.readouterr()
+    assert out == ""
+    assert err.startswith("\r12/200 articulos -- generacion 2 -- Some Paper")
+    assert "\n" not in err
+
+
+def test_print_progress_clears_line_when_finished(capsys):
+    _print_progress(ProgressEvent(found=12, max_articles=200, generation=0, current_title=None, finished=True))
+    _, err = capsys.readouterr()
+    assert err.strip() == ""

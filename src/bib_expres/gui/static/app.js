@@ -13,8 +13,73 @@
 
   function showProgress(message) {
     document.getElementById("progress-message").textContent = message;
+    document.getElementById("search-progress").classList.add("hidden");
     showScreen("screen-progress");
   }
+
+  // -- Progreso de la busqueda -------------------------------------------------
+  // search() bloquea su propia llamada hasta terminar; mientras tanto se
+  // pregunta a Python cada 500 ms por el estado (pywebview atiende cada llamada
+  // en su propio hilo, asi que get_progress responde aunque search siga).
+
+  const SLOW_AFTER_SECONDS = 30;
+  let progressTimer = null;
+
+  function renderProgress(p) {
+    if (!p || p.status === "idle") return;
+    const pct =
+      p.status === "finished" ? 100 : Math.min(100, Math.round((p.found / p.max_articles) * 100));
+    document.getElementById("progress-fill").style.width = `${pct}%`;
+    document.querySelector(".progress-track").setAttribute("aria-valuenow", String(pct));
+    document.getElementById("progress-stats").textContent =
+      `${p.found} / ${p.max_articles} artículos · generación ${p.generation || 1}`;
+    document.getElementById("progress-current").textContent = p.current_title
+      ? `Explorando: ${p.current_title}`
+      : "";
+    const activity = document.getElementById("progress-activity");
+    const idle = Math.round(p.idle_seconds || 0);
+    if (idle >= SLOW_AFTER_SECONDS) {
+      activity.textContent = `Última actividad hace ${idle} s -- las APIs están tardando, la búsqueda sigue en marcha.`;
+      activity.classList.add("slow");
+    } else {
+      activity.textContent = idle <= 1 ? "Trabajando..." : `Última actividad hace ${idle} s`;
+      activity.classList.remove("slow");
+    }
+  }
+
+  function startProgressPolling() {
+    document.getElementById("search-progress").classList.remove("hidden");
+    document.getElementById("progress-fill").style.width = "0%";
+    document.getElementById("progress-stats").textContent = "";
+    document.getElementById("progress-current").textContent = "";
+    document.getElementById("progress-activity").textContent = "Arrancando...";
+    const cancelBtn = document.getElementById("cancel-search-btn");
+    cancelBtn.disabled = false;
+    cancelBtn.textContent = "Cancelar y ver lo encontrado";
+    progressTimer = setInterval(async () => {
+      try {
+        renderProgress(await window.pywebview.api.get_progress());
+      } catch (err) {
+        console.error(err);
+      }
+    }, 500);
+  }
+
+  function stopProgressPolling() {
+    if (progressTimer !== null) clearInterval(progressTimer);
+    progressTimer = null;
+  }
+
+  document.getElementById("cancel-search-btn").addEventListener("click", async () => {
+    const btn = document.getElementById("cancel-search-btn");
+    btn.disabled = true;
+    btn.textContent = "Cancelando... (termina el artículo en curso)";
+    try {
+      await window.pywebview.api.cancel_search();
+    } catch (err) {
+      console.error(err);
+    }
+  });
 
   // Red/servidor caidos, o cualquier fallo inesperado en Python: sin esto la
   // pantalla se queda colgada en el spinner sin ninguna pista de que algo fue mal.
@@ -157,8 +222,10 @@
   document.getElementById("search-btn").addEventListener("click", async () => {
     setError("params-error", "");
     showProgress("Buscando... puede tardar según los parámetros.");
+    startProgressPolling();
     try {
       const res = await window.pywebview.api.search(collectParams());
+      stopProgressPolling();
       if (res.status === "ok") {
         showResultsScreen(res);
       } else {
@@ -166,6 +233,7 @@
         setError("params-error", res.message || "Error en la búsqueda.");
       }
     } catch (err) {
+      stopProgressPolling();
       showScreen("screen-params");
       setError("params-error", describeUnexpectedError(err));
     }
@@ -180,7 +248,9 @@
   function showResultsScreen(res) {
     lastResultsCount = res.count;
     lastResultsPapers = res.papers;
-    document.getElementById("results-count").textContent = `${res.count} artículos encontrados`;
+    document.getElementById("results-count").textContent = res.cancelled
+      ? `${res.count} artículos encontrados (búsqueda cancelada)`
+      : `${res.count} artículos encontrados`;
     const list = document.getElementById("results-list");
     list.innerHTML = "";
     res.papers.forEach((paper) => {
@@ -359,11 +429,19 @@
   });
 
   document.getElementById("settings-save-btn").addEventListener("click", async () => {
-    await window.pywebview.api.save_settings({
+    const saved = document.getElementById("settings-saved");
+    const res = await window.pywebview.api.save_settings({
       CONTACT_EMAIL: document.getElementById("settings-email").value.trim(),
       SEMANTIC_SCHOLAR_API_KEY: document.getElementById("settings-key").value.trim(),
     });
-    document.getElementById("settings-saved").classList.remove("hidden");
+    if (res && res.status === "error") {
+      saved.textContent = res.message || "No se han podido guardar los ajustes.";
+      saved.classList.add("error-text");
+    } else {
+      saved.textContent = "Guardado.";
+      saved.classList.remove("error-text");
+    }
+    saved.classList.remove("hidden");
   });
 
   document.getElementById("settings-back-btn").addEventListener("click", () => {
