@@ -97,6 +97,15 @@
   <section id="screen-progress" class="screen hidden">
     <div class="spinner"></div>
     <p id="progress-message">Un momento...</p>
+    <div id="search-progress" class="hidden">
+      <div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+        <div id="progress-fill" class="progress-fill"></div>
+      </div>
+      <p id="progress-stats" class="progress-stats"></p>
+      <p id="progress-current" class="progress-current"></p>
+      <p id="progress-activity" class="progress-activity"></p>
+      <button id="cancel-search-btn" class="secondary">Cancelar y ver lo encontrado</button>
+    </div>
   </section>
 
   <!-- Pantalla 4: resultados -->
@@ -138,6 +147,7 @@
         <option value="bibtex" selected>BibTeX (.bib)</option>
         <option value="ris">RIS (.ris)</option>
         <option value="csljson">CSL-JSON (.json)</option>
+        <option value="xlsx">Excel, para revisión (.xlsx)</option>
       </select>
     </div>
     <div class="row">

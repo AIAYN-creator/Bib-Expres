@@ -1,6 +1,6 @@
 [project]
 name = "bib-expres"
-version = "2.2.0"
+version = "2.3.0"
 description = "Herramienta de snowballing bibliografico a partir de un paper padre"
 requires-python = ">=3.10"
 license = {text = "MIT"}
@@ -11,6 +11,7 @@ dependencies = [
     "python-dotenv>=1.0",
     "pypdf>=6.21.4",
     "pywebview>=5.0",
+    "openpyxl>=3.1",
 ]
 
 [project.optional-dependencies]

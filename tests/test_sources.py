@@ -23,6 +23,8 @@ class _FakeResponse:
         self.headers = headers or {}
         self.chunks_read = 0
 
+    status_code = 200
+
     def raise_for_status(self):
         pass
 
@@ -379,3 +381,85 @@ def test_semantic_scholar_get_similar_encodes_untrusted_candidate_doi_from_api(
     assert len(captured_urls) == 2
     candidate_resolution_path = urlsplit(captured_urls[1]).path
     assert candidate_resolution_path == "/works/doi:" + quote(_PATH_INJECTING_DOI, safe="")
+
+
+def test_parse_openalex_work_topic_and_keywords():
+    raw = {
+        "id": "https://openalex.org/W1",
+        "display_name": "X",
+        "primary_topic": {"display_name": "Neural Networks and Applications"},
+        "keywords": [{"display_name": "deep learning"}, {"display_name": "backpropagation"}, {}],
+    }
+    paper = parse_openalex_work(raw)
+    assert paper.topic == "Neural Networks and Applications"
+    assert paper.keywords == ["deep learning", "backpropagation"]
+
+
+def test_parse_openalex_work_without_topic_or_keywords():
+    paper = parse_openalex_work({"id": "https://openalex.org/W1", "display_name": "X"})
+    assert paper.topic is None
+    assert paper.keywords == []
+
+
+# -- limite de peticiones (HTTP 429) ----------------------------------------------
+
+
+class _StatusResponse(_FakeResponse):
+    def __init__(self, status_code, headers=None, json_data=None):
+        super().__init__(content=b"{}", headers=headers, json_data=json_data)
+        self.status_code = status_code
+
+
+def _client(tmp_path):
+    return SourceClient(base_url="https://api.example.org", cache=ResponseCache(path=tmp_path / "c.sqlite3"))
+
+
+def test_long_retry_after_raises_rate_limited_without_sleeping(tmp_path, monkeypatch):
+    from bib_expres.sources.base import RateLimitedError
+
+    client = _client(tmp_path)
+    monkeypatch.setattr(client._session, "get", lambda *a, **k: _StatusResponse(429, {"Retry-After": "37171"}))
+    slept = []
+    monkeypatch.setattr("bib_expres.sources.base.time.sleep", slept.append)
+    with pytest.raises(RateLimitedError) as exc:
+        client.get("/works")
+    assert slept == []
+    assert "unas 10 horas" in str(exc.value)
+    assert "api.example.org" in str(exc.value)
+    assert not isinstance(exc.value, requests.RequestException)
+
+
+def test_short_retry_after_waits_and_retries(tmp_path, monkeypatch):
+    client = _client(tmp_path)
+    responses = iter([_StatusResponse(429, {"Retry-After": "2"}), _StatusResponse(200, json_data={"ok": 1})])
+    monkeypatch.setattr(client._session, "get", lambda *a, **k: next(responses))
+    slept = []
+    monkeypatch.setattr("bib_expres.sources.base.time.sleep", slept.append)
+    assert client.get("/works") == {"ok": 1}
+    assert slept == [2.0]
+
+
+def test_persistent_short_429_is_a_regular_network_failure(tmp_path, monkeypatch):
+    client = _client(tmp_path)
+    monkeypatch.setattr(client._session, "get", lambda *a, **k: _StatusResponse(429))
+    monkeypatch.setattr("bib_expres.sources.base.time.sleep", lambda s: None)
+    with pytest.raises(requests.RequestException):
+        client.get("/works")
+
+
+def test_retry_after_http_date_in_the_far_future(tmp_path, monkeypatch):
+    from bib_expres.sources.base import RateLimitedError
+
+    client = _client(tmp_path)
+    monkeypatch.setattr(
+        client._session, "get",
+        lambda *a, **k: _StatusResponse(429, {"Retry-After": "Wed, 21 Oct 2099 07:28:00 GMT"}),
+    )
+    with pytest.raises(RateLimitedError):
+        client.get("/works")
+
+
+def test_session_retry_ignores_retry_after_for_server_errors(tmp_path):
+    adapter = _client(tmp_path)._session.get_adapter("https://api.example.org")
+    assert adapter.max_retries.respect_retry_after_header is False
+    assert 429 not in adapter.max_retries.status_forcelist

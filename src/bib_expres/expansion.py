@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import heapq
 import itertools
+from dataclasses import dataclass
+from typing import Callable
 
 import requests
 
@@ -12,16 +14,42 @@ from .sources.openalex import OpenAlexClient
 from .sources.semantic_scholar import SemanticScholarClient
 
 
+@dataclass(frozen=True)
+class ProgressEvent:
+    """Foto del estado de la busqueda, para pintar una barra de progreso.
+
+    `found / max_articles` es el progreso real hacia el tope. Si el grafo se
+    agota antes de llegar al tope, la busqueda acaba con `found < max_articles`
+    y `finished=True` -- quien pinte la barra debe saltar al 100% y explicarlo,
+    no quedarse a medias."""
+
+    found: int
+    max_articles: int
+    generation: int
+    current_title: str | None
+    finished: bool = False
+    cancelled: bool = False
+
+
+ProgressCallback = Callable[[ProgressEvent], None]
+
+
 def expand(
     root: Paper,
     config: SearchConfig,
     openalex_client: OpenAlexClient | None = None,
     semantic_scholar_client: SemanticScholarClient | None = None,
+    on_progress: ProgressCallback | None = None,
+    should_cancel: Callable[[], bool] | None = None,
 ) -> list[Paper]:
     """Bucle best-first: explora primero los candidatos con mayor score de
     relevancia, respetando limite de generaciones, tope total y fanout por nodo.
     No lee configuracion de instalacion (API keys, contact email) -- eso lo hace
-    quien construya los clientes antes de llamar aqui (implementacion-cli)."""
+    quien construya los clientes antes de llamar aqui (implementacion-cli).
+
+    `on_progress` se llama antes y despues de pedir los candidatos de cada paper
+    (la parte lenta, de red) y una vez al final. `should_cancel` se comprueba en
+    cada vuelta: si devuelve True, se para y se devuelve lo encontrado hasta ahi."""
     openalex = openalex_client or OpenAlexClient()
     similar_client = semantic_scholar_client
     if ExpansionMode.SIMILAR in config.modes and similar_client is None:
@@ -35,12 +63,32 @@ def expand(
     frontier: list[tuple[float, int, Paper]] = []
     heapq.heappush(frontier, (-1.0, next(counter), root))
 
+    def report(current: Paper | None, finished: bool = False, cancelled: bool = False) -> None:
+        if on_progress is None:
+            return
+        on_progress(
+            ProgressEvent(
+                found=len(results),
+                max_articles=config.max_articles,
+                generation=current.generation + 1 if current is not None else 0,
+                current_title=current.title if current is not None else None,
+                finished=finished,
+                cancelled=cancelled,
+            )
+        )
+
+    cancelled = False
     while frontier and len(results) < config.max_articles:
+        if should_cancel is not None and should_cancel():
+            cancelled = True
+            break
+
         _neg_score, _, current = heapq.heappop(frontier)
 
         if current.generation >= config.generations:
             continue
 
+        report(current)
         candidates = _fetch_candidates(current, config, openalex, similar_client)
 
         scored_candidates = []
@@ -66,7 +114,9 @@ def expand(
             heapq.heappush(
                 frontier, (-(candidate.relevance_score or 0.0), next(counter), candidate)
             )
+        report(current)
 
+    report(None, finished=True, cancelled=cancelled)
     return results
 
 

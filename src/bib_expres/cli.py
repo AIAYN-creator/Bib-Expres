@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 
 from . import __version__
 from .config import ExpansionMode, InstallConfig, RelevanceWeights, SearchConfig
-from .expansion import expand
+from .expansion import ProgressEvent, expand
 from .export import infer_format, write
 from .models import Paper
 from .resolve import (
@@ -17,6 +17,7 @@ from .resolve import (
     resolve_root_paper,
     search_by_title,
 )
+from .sources.base import RateLimitedError
 from .sources.crossref import CrossrefClient
 from .sources.openalex import OpenAlexClient
 from .sources.semantic_scholar import SemanticScholarClient
@@ -47,7 +48,7 @@ def _parse_doc_types(raw: str) -> set[str]:
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="bib-expres",
-        description="Snowballing bibliografico a partir de un paper padre (DOI).",
+        description="Snowballing bibliografico a partir de un paper padre (DOI, arXiv, titulo o PDF).",
     )
     parser.add_argument("--version", action="version", version=__version__)
     parser.add_argument("--doi", help="DOI del paper padre (atajo directo, sin autodeteccion)")
@@ -91,11 +92,34 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--output", default=DEFAULT_OUTPUT, help="Fichero de salida")
     parser.add_argument(
         "--format",
-        choices=["bibtex", "ris", "csljson"],
+        choices=["bibtex", "ris", "csljson", "xlsx"],
         default=None,
         help="Formato de salida; por defecto se infiere de la extension de --output",
     )
+    parser.add_argument(
+        "--quiet",
+        action="store_true",
+        help="No mostrar la linea de progreso durante la busqueda",
+    )
     return parser
+
+
+_PROGRESS_WIDTH = 100
+
+
+def _print_progress(event: ProgressEvent) -> None:
+    """Una sola linea en stderr que se reescribe con \r (sin codigos ANSI, que
+    no todas las consolas de Windows entienden) -- stdout queda para el resultado."""
+    if event.finished:
+        line = ""
+    else:
+        title = (event.current_title or "")[:45]
+        line = (
+            f"{event.found}/{event.max_articles} articulos"
+            f" -- generacion {event.generation} -- {title}"
+        )
+    sys.stderr.write("\r" + line[:_PROGRESS_WIDTH].ljust(_PROGRESS_WIDTH) + ("\r" if not line else ""))
+    sys.stderr.flush()
 
 
 def _confirm_title_candidate(query: str, openalex_client: OpenAlexClient) -> Paper | None:
@@ -119,6 +143,14 @@ def _confirm_title_candidate(query: str, openalex_client: OpenAlexClient) -> Pap
 
 
 def main(argv: list[str] | None = None) -> int:
+    try:
+        return _run(argv)
+    except RateLimitedError as exc:
+        print(f"\nError: {exc}", file=sys.stderr)
+        return 1
+
+
+def _run(argv: list[str] | None = None) -> int:
     load_dotenv()
 
     parser = _build_parser()
@@ -176,7 +208,11 @@ def main(argv: list[str] | None = None) -> int:
         root = confirmed
 
     results = expand(
-        root, config, openalex_client=openalex, semantic_scholar_client=semantic_scholar
+        root,
+        config,
+        openalex_client=openalex,
+        semantic_scholar_client=semantic_scholar,
+        on_progress=None if args.quiet else _print_progress,
     )
 
     output_format = args.format or infer_format(args.output)

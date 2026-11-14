@@ -138,6 +138,32 @@ details.advanced summary { cursor: pointer; color: var(--muted); font-size: 0.9r
 
 #screen-progress { text-align: center; color: var(--muted); }
 
+#search-progress { max-width: 520px; margin: 0 auto; }
+.progress-track {
+  height: 10px;
+  border-radius: 5px;
+  background: var(--border);
+  overflow: hidden;
+  margin: 0.5rem 0 0.75rem;
+}
+.progress-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--primary);
+  transition: width 0.4s ease;
+}
+.progress-stats { color: var(--fg); font-weight: 500; margin: 0.25rem 0; }
+.progress-current {
+  font-size: 0.85rem;
+  margin: 0.25rem 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.progress-activity { font-size: 0.82rem; margin: 0.25rem 0 1rem; }
+.progress-activity.slow { color: #b45309; }
+.error-text { color: var(--error); }
+
 @keyframes spin {
   to { transform: rotate(360deg); }
 }

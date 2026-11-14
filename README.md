@@ -1,139 +1,175 @@
+<div align="center">
+
+<img src="packaging/icon.png" width="120" alt="bib-exprés logo: a root node branching into three">
+
 # bib_exprés
 
-<img src="packaging/icon.png" align="left" width="120" alt="Logo de bib-exprés: un nodo raíz ramificándose en tres">
+**From one paper to a full bibliography — no black boxes.**
 
-Herramienta de snowballing bibliográfico: a partir de un paper padre (DOI), expande generaciones de referencias, citas y artículos similares, y consolida una bibliografía filtrada por relevancia.
+**English** · [Español](README.es.md)
 
-**Estado: v1 funciona de principio a fin — 200 artículos en ~22 segundos** en la validación real ([ver ejemplo](docs/ejemplo.md)). **v2 también funciona de principio a fin** — GUI, curación tipo Tinder, `.exe` standalone, entrada por arXiv/título/PDF, RIS/CSL-JSON y filtros, validado tanto contra datos reales como con clics reales dentro de la ventana ([ver ejemplo de v2](docs/ejemplo-v2.md)). **[Descarga directa del `.exe` en Releases](https://github.com/AIAYN-creator/Bib-Expres/releases/latest)** — sin instalar Python.
+[![Latest release](https://img.shields.io/github/v/release/AIAYN-creator/Bib-Expres?label=download)](https://github.com/AIAYN-creator/Bib-Expres/releases/latest)
+[![MIT license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-## Cómo funciona
+</div>
+
+## What it does
+
+Give it **one paper** (a DOI, an arXiv ID, a title or the PDF itself) and bib_exprés does the *snowballing* for you. It follows the paper's references, the papers that cite it and similar articles, generation after generation, scores every candidate with a **simple, visible** relevance formula, and hands you a bibliography ready for Zotero, LaTeX or Excel.
 
 ```
-DOI de entrada
-  -> resolucion (CrossRef + OpenAlex)          -> paper raiz
-  -> expansion (cola por prioridad)
-       -> OpenAlex: referencias + citas
-       -> Semantic Scholar: articulos similares (modo opcional)
-       -> puntuacion de relevancia + deduplicacion en cada candidato
-     ... hasta agotar generaciones, tope de articulos, o el grafo
-  -> exportacion -> fichero .bib
+input paper
+  -> resolution (CrossRef + OpenAlex)          -> root paper
+  -> expansion (priority queue)
+       -> OpenAlex: references + citations
+       -> Semantic Scholar: similar articles (optional)
+       -> relevance score + deduplication for every candidate
+     ... until generations, the article cap or the graph run out
+  -> optional curation (keep / discard one by one)
+  -> export -> .bib / .ris / .json / .xlsx
 ```
 
-Todos los parámetros de la búsqueda son configurables (generaciones, tope total de artículos, tope por artículo, modos de expansión activos, pesos de relevancia, filtros por tipo de documento/acceso abierto) — nada queda fijo en el código. Se maneja desde la CLI o desde la interfaz gráfica de escritorio, a elegir.
+## Performance
 
-## Fuentes de datos
+**200 articles in ~22 seconds**, starting from *Attention Is All You Need* with the default settings (2 generations, references + citations). That is a real run, not an estimate: [see the full example](docs/ejemplo.md) (in Spanish). The time depends mostly on how fast OpenAlex answers that day: the same search, repeated in November 2026 with an empty cache, took 27–39 s.
 
-- **OpenAlex** (primaria) — referencias, citas, temas/conceptos. Sin API key.
-- **Semantic Scholar** (complemento) — artículos similares. Requiere API key gratuita.
-- **CrossRef** — resolución y verificación de DOI.
+## Download and use
 
-## Instalación
+### Nothing to install (Windows)
+
+**[Download `bib-expres-gui.exe` from Releases](https://github.com/AIAYN-creator/Bib-Expres/releases/latest)** (~17 MB) and run it. No Python needed. That link always points to the latest version, and every release publishes the `.exe`'s SHA-256 so you can verify the download.
+
+Windows may warn you the first time because the `.exe` is not signed ("More info" > "Run anyway").
+
+### With Python
 
 ```bash
 pip install -e ".[dev]"
 ```
 
-Guía completa, con configuración de `.env`: [docs/instalacion.md](docs/instalacion.md).
-
-## Uso
-
-Por CLI:
-
-```bash
-bib-expres --doi 10.1000/ejemplo --output bibliografia.bib
-```
-
-Referencia completa de parámetros: [docs/uso.md](docs/uso.md).
-
-Por interfaz gráfica (sin terminal, DOI/arXiv/título/PDF como entrada):
+Desktop app:
 
 ```bash
 bib-expres-gui
 ```
 
-O, sin tener Python instalado en la máquina que la vaya a usar: **[descarga `bib-expres-gui.exe` directamente de Releases](https://github.com/AIAYN-creator/Bib-Expres/releases/latest)** (~15 MB) y ejecútalo — ese enlace siempre apunta a la última versión publicada. También se puede construir en local con `pip install -e ".[packaging]"` seguido de `pyinstaller packaging/bib-expres-gui.spec`. Detalles en [docs/instalacion.md](docs/instalacion.md).
+Command line:
 
-## Trabajos relacionados
+```bash
+bib-expres --doi 10.1000/example --output bibliography.bib
+bib-expres --input "Attention Is All You Need" --output review.xlsx
+```
 
-bib_exprés no es la primera herramienta para explorar bibliografía a partir de un paper. Algunas referencias del mismo espacio:
+Full guides (in Spanish): [installation and `.env`](docs/instalacion.md) · [every parameter](docs/uso.md).
 
-- **[Connected Papers](https://www.connectedpapers.com/)** — explorador visual: a partir de un paper, dibuja un grafo de artículos relacionados por co-citación. Pensado para explorar visualmente, no para generar una bibliografía exportable con reglas configurables.
-- **[ResearchRabbit](https://www.researchrabbit.ai/)** — similar en espíritu ("Spotify para papers"), con colecciones y descubrimiento por similitud/citas, también centrado en exploración visual interactiva.
-- **[Litmaps](https://www.litmaps.com/)** — mapea cómo evoluciona una red de citas en el tiempo, orientado a mantener revisiones de literatura actualizadas.
-- **[ASReview](https://asreview.nl/)** — open-source, pero resuelve un problema distinto: dado un conjunto grande de candidatos (p.ej. exportado de una base de datos), ayuda a priorizar cuáles cribar primero para una revisión sistemática, usando aprendizaje activo.
+> The app's interface and the detailed docs are in Spanish for now; an English interface is planned for v3.
 
-La diferencia de bib_exprés: es una herramienta de línea de comandos, librería y app de escritorio (no una app web), con un algoritmo de expansión y relevancia configurable y transparente, cuya salida es directamente un fichero de bibliografía (BibTeX, RIS o CSL-JSON) listo para un gestor de referencias o LaTeX — no un grafo visual para explorar a mano.
+## Features
 
-## Limitaciones
+- **Input**: DOI, arXiv ID or URL, free-text title (you pick among the candidates) or a PDF.
+- **Configurable expansion**: generations, total cap, per-article cap, modes (references / citations / similar) and relevance weights. Nothing is hard-coded.
+- **Filters**: document type and open access.
+- **Tinder-style curation**: review each candidate with its abstract and keep or discard it with buttons, arrow keys or by dragging.
+- **Live progress**: a progress bar, the paper being explored, "last activity X s ago" and a button to cancel while keeping what was found so far.
+- **Output**: BibTeX, RIS, CSL-JSON and **Excel** for literature reviews (title, authors, linked DOI, topic, keywords, relevance and a free column for notes).
 
-- Solo encuentra lo que **OpenAlex, Semantic Scholar o CrossRef** tengan indexado — papers muy nuevos, muy de nicho, o fuera de esas bases no van a aparecer.
-- La bibliografía es siempre un **subconjunto acotado** (por generaciones y tope de artículos), no "todo lo relacionado" — es una decisión consciente (rendimiento y respeto a las APIs), no un descuido.
-- El modo "similares" depende de tener configurada una API key de Semantic Scholar — sin ella, la expansión se queda solo con el grafo de citas de OpenAlex.
-- El score de relevancia es una **fórmula simple y transparente**, no un modelo de lenguaje ni embeddings — prioriza poder explicar por qué algo entra o no, a costa de ser menos sofisticado que un enfoque de ML.
-- El `.exe` no está firmado — Windows puede mostrar un aviso de SmartScreen la primera vez ("Más información" > "Ejecutar de todas formas"), y el antivirus puede bloquearlo brevemente nada más construirlo (visto de verdad al generar el build, no solo en teoría).
-- Buscar el paper padre por ID de arXiv falla si ese paper se publicó después en otro sitio con su propio DOI (le pasa a bastantes papers de ML conocidos) — buscarlo por título no tiene este problema. Detalle en [docs/ejemplo-v2.md](docs/ejemplo-v2.md).
-- El paper padre nunca se descarta por los filtros de tipo de documento/acceso abierto (tampoco por relevancia) — siempre aparece en el resultado final, sea cual sea el filtro pedido.
+## Data sources
 
-## Qué queda para v2
+- **OpenAlex** (primary): references, citations, topics and keywords. No API key.
+- **Semantic Scholar** (complement): similar articles. Needs a free API key.
+- **CrossRef**: DOI resolution and verification.
 
-**v2 está cerrado** — [release `v2.0.0`](https://github.com/AIAYN-creator/Bib-Expres/releases/tag/v2.0.0), hecho, validado contra datos reales, probado a mano dentro de la ventana, y publicado como descarga directa:
+## Related work
 
-- Interfaz gráfica de escritorio (`bib-expres-gui`) y empaquetado como `.exe` standalone — descargable, no solo "clona y construye".
-- Curación de resultados tipo Tinder: revisar cada candidato (abstract) y decidir guardar/descartar a mano.
-- Formatos de entrada adicionales: ID/URL de arXiv, título en texto libre, PDF.
-- Formatos de salida adicionales: RIS y CSL-JSON, además de BibTeX.
-- Filtros por tipo de documento y estado de acceso abierto.
+bib_exprés is not the first tool for exploring the literature around a paper. Some tools in the same space:
 
-**Descartado por ahora:** autenticación/autorización — solo tendría sentido si esto se expusiera como servicio a terceros, y v2 sigue siendo una app de escritorio local.
+- **[Connected Papers](https://www.connectedpapers.com/)**: a visual explorer that draws a graph of related papers by co-citation. Built for visual exploration, not for producing an exportable bibliography with configurable rules.
+- **[ResearchRabbit](https://www.researchrabbit.ai/)**: similar in spirit ("Spotify for papers"), with collections and discovery by similarity and citations, also centred on interactive visual exploration.
+- **[Litmaps](https://www.litmaps.com/)**: maps how a citation network evolves over time, aimed at keeping literature reviews up to date.
+- **[ASReview](https://asreview.nl/)**: open-source, but it solves a different problem. Given a large set of candidates (e.g. exported from a database), it uses active learning to prioritise which ones to screen first in a systematic review.
 
-## v2.1.0 — parche de seguridad: DOIs sin escapar en las peticiones HTTP
+What makes bib_exprés different: it is a command-line tool, library and desktop app (not a web app), with a configurable, transparent expansion and relevance algorithm, and its output is a bibliography file ready for a reference manager, LaTeX or Excel, not a visual graph to explore by hand.
 
-Una auditoría de seguridad encontró que `bib_exprés` metía el DOI directamente en el path de la URL al pedir metadata a OpenAlex, CrossRef y Semantic Scholar, sin escapar caracteres especiales. El problema: un DOI válido puede contener `/`, `:`, `;`, `(` y `)` — los mismos caracteres que delimitan un path HTTP — así que un DOI pensado para manipular la ruta podía alterar la petición real enviada a esas APIs en vez de limitarse a identificar un paper. El caso más delicado estaba en el modo "similares": el DOI de cada candidato viene tal cual de la respuesta de Semantic Scholar (una fuente externa), sin pasar por ninguna validación local, antes de usarse para pedir ese paper a OpenAlex.
+## Limitations
 
-**Arreglado**: los cuatro sitios donde un DOI (o el ID interno de OpenAlex de un paper) se interpolaba en el path de una petición ahora lo escapan primero (`urllib.parse.quote`). Se comprobó contra las tres APIs reales que un DOI normal con `/` se sigue resolviendo exactamente igual que antes del parche — el arreglo no cambia nada del comportamiento habitual, solo cierra la vía para manipular la ruta.
+- It only finds what **OpenAlex, Semantic Scholar or CrossRef** have indexed. Very new, very niche or non-indexed papers will not show up.
+- The bibliography is always a **bounded subset** (by generations and article cap), not "everything related". That is a deliberate choice (performance and fair use of the APIs), not an oversight.
+- "Similar" mode needs a Semantic Scholar API key. Without one, expansion only uses the OpenAlex citation graph.
+- The relevance score is a **simple, transparent formula**, not a language model or embeddings. It favours being able to explain why something is in or out over the sophistication of an ML approach.
+- The `.exe` is not signed. Windows may show a SmartScreen warning the first time, and antivirus software may briefly block it right after building.
+- Looking up the root paper by arXiv ID fails if the paper was later published elsewhere under its own DOI (common for well-known ML papers). Searching by title does not have this problem. Details in [docs/ejemplo-v2.md](docs/ejemplo-v2.md) (in Spanish).
+- The root paper is never dropped by the document-type or open-access filters, nor by relevance: it always appears in the final result.
 
-No hace falta ninguna acción manual: actualizar a esta versión (o al `.exe` publicado en Releases) ya incluye el parche, sin cambios de configuración ni de comportamiento visible.
+## Roadmap
 
-## v2.1.1 — icono propio para `bib-expres-gui.exe`
+**v3**, already planned:
 
-El `.exe` de la GUI salía con el icono genérico de PyInstaller: el `.spec` no declaraba ninguno, y el único parámetro de icono de `pywebview` (`webview.start(icon=...)`) solo funciona en GTK/QT, no hace nada en Windows.
+- **A better, explainable algorithm**: OpenAlex topics, links to the papers already accepted and text similarity, with the score breakdown visible for every article. It will be measured against a benchmark of real literature reviews before anything changes.
+- **Institutional access**: links through your library's proxy and an "only what I can access" filter.
+- **Language filter**, Google Scholar style: in the search language or in any language.
+- **A redesigned GUI**, with the logo, in English or Spanish.
 
-Se añadió `packaging/icon.ico` (nodo raíz ramificándose en tres — el snowballing de citas que hace la app) referenciado desde `EXE(icon=...)` en `packaging/bib-expres-gui.spec`. Sin cambios de comportamiento: solo el icono en Explorador, menú Inicio, barra de tareas y la propia ventana.
+Open questions:
 
-## v2.2.0 — parche de seguridad: librerías desactualizadas dentro del `.exe`
+- The defaults (`max_articles=200`, `max_fanout_per_node=20`, relevance weights) are a reasonable starting point, not a validated number. The v3 benchmark will be used to tune them.
+- Whether signing the `.exe` (code-signing certificate) is worth it so Windows stops warning.
+- Whether the library/CLI part ships on PyPI or only from GitHub.
 
-Una segunda auditoría de seguridad, centrada esta vez en lo que añadió v2 (el `.exe` y la GUI), encontró que el `.exe` publicado llevaba dentro versiones de tres librerías con vulnerabilidades conocidas, publicadas *después* de construirlo:
+## Version history
 
-- **`pypdf`** (lee el PDF cuando le das un PDF como paper padre): un PDF fabricado a propósito podía dejar la app colgada o comiéndose la memoria. No permitía ejecutar código, pero sí bloquear la app con un fichero que suele venir de internet.
-- **`urllib3`** (la conexión HTTP con las APIs): fallos en cómo limita respuestas comprimidas muy grandes.
-- **`certifi`** (la lista de autoridades de certificados en las que confía la conexión HTTPS): incluía una autoridad ya retirada.
+### v2.3.0: progress bar, Excel export, a bilingual README and no more silent hangs
 
-**Arreglado**:
+- **Live progress while searching**: a progress bar with articles found over the cap, the generation and the paper being explored, plus "last activity X s ago" so you can tell a slow search from a stuck one (after 30 s it says the APIs are slow but the search is still running). A **Cancel** button stops the search and keeps what was found so far. The CLI shows the same as a single line on `stderr`; `--quiet` hides it.
+- **Excel export for literature reviews** (`--format xlsx`, or "Excel" in the app): title, authors, DOI as a link, topic, keywords, relevance score, and an empty "Other notes" column. Frozen header and filters, so sorting by author or by relevance is one click. Any text starting with `=` is stored as plain text, never as a formula.
+- **README in English** with a Spanish version (`README.es.md`), reorganised: what it does, the benchmark, download and use first, version history last.
+- **Fixed: the app could hang for hours in silence** when OpenAlex rate-limits requests (too many in a short time, or the daily quota used up). OpenAlex then asks to wait, sometimes around 10 hours, and bib_exprés used to obey without limit. Now short waits (up to 30 s) are retried as before, and longer ones stop the search right away with a clear message saying how long to wait. Everything already fetched stays in the local cache, so retrying later costs fewer requests. Affected every earlier version.
+- New dependency: `openpyxl`. The `.exe` grows from ~16.4 MB to ~17 MB.
 
-- Las tres librerías, actualizadas a versiones sin problemas conocidos (mínimos nuevos en `pyproject.toml`).
-- El `.exe` se construye ahora con versiones exactas fijadas en `packaging/requirements-build.txt`, en vez de con lo que hubiera instalado ese día.
-- El CI pasa `pip-audit` **cada semana**, aunque no haya commits. La razón de fondo de este parche es que antes solo se auditaba al hacer push, así que nadie se enteró de estas vulnerabilidades cuando salieron.
-- Arreglos menores de paso:
-  - Un PDF raro ya no deja la GUI esperando sin mensaje.
-  - El límite de 10 MB por respuesta de las APIs se aplica mientras se descarga, no después.
-  - Los ajustes de la GUI ya no aceptan saltos de línea que rompan el `.env`.
-- Cada release publica el SHA-256 del `.exe`, para comprobar que el fichero descargado es el que se subió (cómo hacerlo en [docs/instalacion.md](docs/instalacion.md)).
+### v2.2.0: security patch, outdated libraries inside the `.exe`
 
-No hace falta ninguna acción manual: basta con descargar el `.exe` nuevo de Releases (o actualizar con `pip install -e .`). Sin cambios de configuración ni de comportamiento visible.
+A second security audit, focused on what v2 added (the `.exe` and the GUI), found that the published `.exe` bundled three libraries with known vulnerabilities, disclosed *after* it was built:
 
-## Qué queda para v3
+- **`pypdf`** (reads the PDF when you give a PDF as the root paper): a crafted PDF could hang the app or eat up its memory. No code execution, but it could freeze the app with a file that usually comes from the internet.
+- **`urllib3`** (the HTTP connection to the APIs): flaws in how it limits very large compressed responses.
+- **`certifi`** (the list of certificate authorities the HTTPS connection trusts): it included an authority that has since been distrusted.
 
-Todavía sin planificar en detalle — apuntado aquí como idea, igual que empezó v2:
+**Fixed**:
 
-- **Filtro por idioma** — solo artículos en español, o en todos (al estilo Google Scholar). OpenAlex ya devuelve el idioma de cada artículo en sus respuestas (`language`, código ISO como `en`/`es` — comprobado en directo), así que el dato está disponible en la fuente, pero `bib_exprés` no lo guarda ni lo filtra todavía.
-- **Interfaz gráfica en inglés o castellano, a elegir** — hoy todos los textos de la GUI (`gui/static/`) están fijos en español.
+- All three libraries updated to versions with no known issues.
+- The `.exe` is built from exact versions pinned in `packaging/requirements-build.txt`.
+- CI runs `pip-audit` **every week**, even without commits. The root cause behind this patch is that it used to audit only on push.
+- Minor fixes along the way:
+  - An odd PDF no longer leaves the GUI waiting with no message.
+  - The 10 MB response limit is enforced while downloading.
+  - Settings no longer accept line breaks that would break the `.env`.
+- Every release publishes the `.exe`'s SHA-256 ([how to check it](docs/instalacion.md), in Spanish).
 
-## Preguntas abiertas
+Nothing to do manually beyond downloading the new `.exe` or updating with `pip install -e .`.
 
-- Los valores por defecto (`max_articles=200`, `max_fanout_per_node=20`, pesos de relevancia) son un punto de partida razonable, no un número validado — probablemente haga falta ajustarlos con casos reales.
-- Si compensa firmar el `.exe` en algún momento (certificado de firma de código) para que Windows deje de avisar — de momento se acepta el aviso de SmartScreen como coste conocido.
-- Si el proyecto crece más allá de un uso personal/de equipo, falta decidir cómo se distribuye la parte de librería/CLI (¿PyPI? ¿solo instalación desde GitHub?).
+### v2.1.1: custom icon for `bib-expres-gui.exe`
 
-## Licencia
+The `.exe` shipped with PyInstaller's generic icon: the `.spec` did not declare one, and `pywebview`'s icon parameter only works on GTK/QT, not on Windows. Added `packaging/icon.ico` (a root node branching into three, the citation snowballing the app does), referenced from `EXE(icon=...)`. No behaviour changes.
 
-MIT — ver [LICENSE](LICENSE).
+### v2.1.0: security patch, unescaped DOIs in HTTP requests
+
+bib_exprés put the DOI straight into the URL path when requesting metadata from OpenAlex, CrossRef and Semantic Scholar, without escaping special characters. A valid DOI can contain `/`, `:`, `;`, `(` and `)`, so a crafted DOI could alter the actual request sent to those APIs. The most sensitive case was "similar" mode, where each candidate's DOI comes straight from Semantic Scholar's response.
+
+**Fixed**: the four places where a DOI (or OpenAlex's internal ID) was interpolated into the path now escape it first (`urllib.parse.quote`). Checked against the three real APIs that a normal DOI still resolves exactly as before.
+
+### v2.0.0: desktop app, `.exe` and curation
+
+- Desktop GUI (`bib-expres-gui`) and a downloadable standalone `.exe`.
+- Tinder-style curation of results.
+- Input by arXiv ID/URL, free-text title and PDF.
+- RIS and CSL-JSON output, besides BibTeX.
+- Document-type and open-access filters.
+
+Validated against real data and with real clicks inside the window ([v2 example](docs/ejemplo-v2.md), in Spanish). Ruled out for now: authentication, which would only make sense if this were offered as a service to third parties.
+
+### v1: end-to-end CLI
+
+DOI-based snowballing from the command line with BibTeX output: 200 articles in ~22 seconds ([example](docs/ejemplo.md), in Spanish).
+
+## License
+
+MIT. See [LICENSE](LICENSE).

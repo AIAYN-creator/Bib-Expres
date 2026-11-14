@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
+from urllib.parse import quote
 
 from .models import Paper
 
@@ -136,8 +137,85 @@ def write_csljson(papers: list[Paper], path: str) -> None:
         f.write(to_csljson(papers))
 
 
-EXPORTERS = {"bibtex": write_bibtex, "ris": write_ris, "csljson": write_csljson}
-_FORMAT_BY_EXTENSION = {".bib": "bibtex", ".ris": "ris", ".json": "csljson"}
+XLSX_COLUMNS = [
+    # (cabecera, ancho aproximado en caracteres)
+    ("Título", 60),
+    ("Autores", 35),
+    ("DOI", 28),
+    ("Tema", 30),
+    ("Palabras clave", 40),
+    ("Relevancia", 11),
+    ("Otras notas", 45),
+]
+
+
+def _paper_url(paper: Paper) -> str | None:
+    """Enlace al paper: el DOI si lo hay; si no, su ficha en OpenAlex. El DOI
+    viene de una API externa -- se escapa para que no pueda alterar la URL."""
+    if paper.doi:
+        return "https://doi.org/" + quote(paper.doi, safe="/")
+    if paper.openalex_id:
+        return "https://openalex.org/" + quote(paper.openalex_id, safe="")
+    return None
+
+
+def write_xlsx(papers: list[Paper], path: str) -> None:
+    """Hoja para la primera ronda de una revision bibliografica: una fila por
+    paper, con columna libre para notas. Todo texto se fuerza a tipo texto: openpyxl
+    trataria como formula un titulo que empiece por '=' (inyeccion de formulas)."""
+    from openpyxl import Workbook
+    from openpyxl.styles import Alignment, Font
+    from openpyxl.utils import get_column_letter
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Bibliografía"
+
+    for col, (header, width) in enumerate(XLSX_COLUMNS, start=1):
+        cell = ws.cell(row=1, column=col, value=header)
+        cell.font = Font(bold=True)
+        ws.column_dimensions[get_column_letter(col)].width = width
+
+    def text_cell(row: int, col: int, value: str | None):
+        cell = ws.cell(row=row, column=col)
+        if value:
+            cell.value = value
+            cell.data_type = "s"
+        return cell
+
+    for row, paper in enumerate(papers, start=2):
+        text_cell(row, 1, paper.title)
+        text_cell(row, 2, "; ".join(paper.authors))
+
+        url = _paper_url(paper)
+        doi_cell = text_cell(row, 3, paper.doi or ("OpenAlex " + paper.openalex_id if url else None))
+        if url:
+            doi_cell.hyperlink = url
+            doi_cell.style = "Hyperlink"
+
+        text_cell(row, 4, paper.topic)
+        text_cell(row, 5, "; ".join(paper.keywords))
+
+        if paper.relevance_score is not None:
+            score_cell = ws.cell(row=row, column=6, value=round(paper.relevance_score, 3))
+            score_cell.number_format = "0.00"
+
+        notes = ws.cell(row=row, column=7)
+        notes.alignment = Alignment(wrap_text=True, vertical="top")
+
+    ws.freeze_panes = "A2"
+    last_col = get_column_letter(len(XLSX_COLUMNS))
+    ws.auto_filter.ref = f"A1:{last_col}{max(len(papers) + 1, 1)}"
+    wb.save(path)
+
+
+EXPORTERS = {
+    "bibtex": write_bibtex,
+    "ris": write_ris,
+    "csljson": write_csljson,
+    "xlsx": write_xlsx,
+}
+_FORMAT_BY_EXTENSION = {".bib": "bibtex", ".ris": "ris", ".json": "csljson", ".xlsx": "xlsx"}
 
 
 def infer_format(output_path: str) -> str:

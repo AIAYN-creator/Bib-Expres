@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 
 
@@ -33,3 +33,5 @@ class Paper:
     doc_type: str | None = None
     open_access: bool | None = None
     abstract: str | None = None
+    topic: str | None = None
+    keywords: list[str] = field(default_factory=list)
