@@ -379,3 +379,21 @@ def test_semantic_scholar_get_similar_encodes_untrusted_candidate_doi_from_api(
     assert len(captured_urls) == 2
     candidate_resolution_path = urlsplit(captured_urls[1]).path
     assert candidate_resolution_path == "/works/doi:" + quote(_PATH_INJECTING_DOI, safe="")
+
+
+def test_parse_openalex_work_topic_and_keywords():
+    raw = {
+        "id": "https://openalex.org/W1",
+        "display_name": "X",
+        "primary_topic": {"display_name": "Neural Networks and Applications"},
+        "keywords": [{"display_name": "deep learning"}, {"display_name": "backpropagation"}, {}],
+    }
+    paper = parse_openalex_work(raw)
+    assert paper.topic == "Neural Networks and Applications"
+    assert paper.keywords == ["deep learning", "backpropagation"]
+
+
+def test_parse_openalex_work_without_topic_or_keywords():
+    paper = parse_openalex_work({"id": "https://openalex.org/W1", "display_name": "X"})
+    assert paper.topic is None
+    assert paper.keywords == []

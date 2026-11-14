@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const FORMAT_EXTENSIONS = { bibtex: "bib", ris: "ris", csljson: "json" };
+  const FORMAT_EXTENSIONS = { bibtex: "bib", ris: "ris", csljson: "json", xlsx: "xlsx" };
 
   const screens = {};
   document.querySelectorAll(".screen").forEach((el) => (screens[el.id] = el));

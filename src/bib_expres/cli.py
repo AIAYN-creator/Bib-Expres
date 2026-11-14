@@ -91,7 +91,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--output", default=DEFAULT_OUTPUT, help="Fichero de salida")
     parser.add_argument(
         "--format",
-        choices=["bibtex", "ris", "csljson"],
+        choices=["bibtex", "ris", "csljson", "xlsx"],
         default=None,
         help="Formato de salida; por defecto se infiere de la extension de --output",
     )

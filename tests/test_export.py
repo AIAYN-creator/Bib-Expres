@@ -111,3 +111,78 @@ def test_infer_format_by_extension():
     assert infer_format("out.ris") == "ris"
     assert infer_format("out.json") == "csljson"
     assert infer_format("out.unknown") == "bibtex"
+
+
+# -- xlsx -----------------------------------------------------------------------
+
+
+def _read_xlsx(path):
+    from openpyxl import load_workbook
+
+    return load_workbook(path).active
+
+
+def test_write_xlsx_columns_and_values(tmp_path):
+    out = tmp_path / "rev.xlsx"
+    paper = _paper(
+        title="Attention Is All You Need",
+        authors=["Ashish Vaswani", "Noam Shazeer"],
+        doi="10.48550/arxiv.1706.03762",
+        relevance_score=0.8234,
+        topic="Natural Language Processing Techniques",
+        keywords=["transformer", "self-attention"],
+    )
+    write([paper], str(out), format="xlsx")
+
+    ws = _read_xlsx(out)
+    headers = [c.value for c in ws[1]]
+    assert headers == [
+        "Título", "Autores", "DOI", "Tema", "Palabras clave", "Relevancia", "Otras notas"
+    ]
+    row = [c.value for c in ws[2]]
+    assert row[0] == "Attention Is All You Need"
+    assert row[1] == "Ashish Vaswani; Noam Shazeer"
+    assert row[2] == "10.48550/arxiv.1706.03762"
+    assert row[3] == "Natural Language Processing Techniques"
+    assert row[4] == "transformer; self-attention"
+    assert row[5] == pytest.approx(0.823)
+    assert row[6] is None
+    assert ws["C2"].hyperlink.target == "https://doi.org/10.48550/arxiv.1706.03762"
+    assert ws.freeze_panes == "A2"
+    assert ws.auto_filter.ref == "A1:G2"
+
+
+def test_write_xlsx_without_doi_links_to_openalex(tmp_path):
+    out = tmp_path / "rev.xlsx"
+    write([_paper(doi=None)], str(out), format="xlsx")
+    ws = _read_xlsx(out)
+    assert ws["C2"].hyperlink.target.startswith("https://openalex.org/")
+
+
+def test_write_xlsx_neutralises_formula_injection(tmp_path):
+    """Un titulo que venga de la API empezando por '=' no debe ejecutarse como
+    formula al abrir el fichero en Excel."""
+    out = tmp_path / "rev.xlsx"
+    write([_paper(title='=HYPERLINK("http://evil.example","clic")')], str(out), format="xlsx")
+    ws = _read_xlsx(out)
+    assert ws["A2"].data_type == "s"
+    assert ws["A2"].value.startswith("=HYPERLINK")
+
+
+def test_write_xlsx_escapes_doi_in_link(tmp_path):
+    out = tmp_path / "rev.xlsx"
+    write([_paper(doi="10.1/a b?x=1#y")], str(out), format="xlsx")
+    ws = _read_xlsx(out)
+    target = ws["C2"].hyperlink.target
+    assert " " not in target and "?" not in target and "#" not in target
+
+
+def test_write_xlsx_empty_list_still_has_headers(tmp_path):
+    out = tmp_path / "rev.xlsx"
+    write([], str(out), format="xlsx")
+    ws = _read_xlsx(out)
+    assert ws.max_row == 1
+
+
+def test_infer_format_xlsx():
+    assert infer_format("revision.xlsx") == "xlsx"

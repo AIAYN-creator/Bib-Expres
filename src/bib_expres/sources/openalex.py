@@ -73,6 +73,10 @@ def _parse_work(
         doc_type=raw.get("type"),
         open_access=(raw.get("open_access") or {}).get("is_oa"),
         abstract=_reconstruct_abstract(raw.get("abstract_inverted_index")),
+        topic=(raw.get("primary_topic") or {}).get("display_name"),
+        keywords=[
+            k["display_name"] for k in raw.get("keywords") or [] if k.get("display_name")
+        ],
     )
 
 
