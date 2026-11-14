@@ -115,11 +115,12 @@ Preguntas abiertas:
 
 ## Historial de versiones
 
-### v2.3.0: barra de progreso, exportación a Excel y README bilingüe
+### v2.3.0: barra de progreso, exportación a Excel, README bilingüe y adiós a los cuelgues silenciosos
 
 - **Progreso en directo durante la búsqueda**: barra con artículos encontrados sobre el tope, generación y artículo que se está explorando, y "última actividad hace X s" para distinguir una búsqueda lenta de una colgada (a partir de 30 s avisa de que las APIs están tardando, pero la búsqueda sigue). Un botón **Cancelar** para la búsqueda y se queda con lo encontrado hasta ese momento. La CLI muestra lo mismo en una línea en `stderr`; `--quiet` la oculta.
 - **Exportación a Excel para revisiones bibliográficas** (`--format xlsx`, o "Excel" en la app): título, autores, DOI como enlace, tema, palabras clave, relevancia y una columna "Otras notas" vacía. Cabecera fija y filtros, así que ordenar por autor o por relevancia es un clic. Un texto que empiece por `=` se guarda como texto, nunca como fórmula.
 - **README en inglés** con versión en español (`README.es.md`), reordenado: qué hace, el benchmark, descarga y uso primero, e historial de versiones al final.
+- **Arreglado: la app podía quedarse colgada horas sin decir nada** cuando OpenAlex limita las peticiones (demasiadas en poco tiempo, o la cuota diaria agotada). En ese caso OpenAlex pide esperar, a veces unas 10 horas, y bib_exprés obedecía sin límite. Ahora las esperas cortas (hasta 30 s) se reintentan como antes, y las largas paran la búsqueda al momento con un mensaje claro que dice cuánto esperar. Lo ya consultado queda en la caché local, así que reintentar más tarde gasta menos peticiones. Afectaba a todas las versiones anteriores.
 - Dependencia nueva: `openpyxl`. El `.exe` pasa de ~16,4 MB a ~17 MB.
 
 ### v2.2.0: parche de seguridad, librerías desactualizadas dentro del `.exe`
