@@ -19,6 +19,7 @@ from .resolve import (
     resolve_root_paper,
     search_by_title,
 )
+from .sources.base import RateLimitedError
 from .sources.crossref import CrossrefClient
 from .sources.openalex import OpenAlexClient
 from .sources.semantic_scholar import SemanticScholarClient
@@ -65,7 +66,7 @@ def _parse_language(raw: str) -> str | set[str] | None:
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="bib-expres",
-        description="Snowballing bibliografico a partir de un paper padre (DOI).",
+        description="Snowballing bibliografico a partir de un paper padre (DOI, arXiv, titulo o PDF).",
     )
     parser.add_argument("--version", action="version", version=__version__)
     parser.add_argument("--doi", help="DOI del paper padre (atajo directo, sin autodeteccion)")
@@ -215,6 +216,14 @@ def _confirm_title_candidate(query: str, openalex_client: OpenAlexClient) -> Pap
 
 
 def main(argv: list[str] | None = None) -> int:
+    try:
+        return _run(argv)
+    except RateLimitedError as exc:
+        print(f"\nError: {exc}", file=sys.stderr)
+        return 1
+
+
+def _run(argv: list[str] | None = None) -> int:
     load_dotenv()
 
     parser = _build_parser()

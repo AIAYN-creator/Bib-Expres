@@ -185,3 +185,14 @@ def test_invalid_library_link_fails_before_searching(monkeypatch, capsys):
     code = cli.main(["--doi", "10.1/x", "--library-link", "http://insecure.edu/?url="])
     assert code == 1
     assert "https" in capsys.readouterr().err
+
+def test_cli_reports_rate_limit_and_exits_1(monkeypatch, capsys):
+    from bib_expres import cli
+    from bib_expres.sources.base import RateLimitedError
+
+    def limited(*a, **k):
+        raise RateLimitedError("api.openalex.org", 37171)
+
+    monkeypatch.setattr(cli, "resolve_root_paper", limited)
+    assert cli.main(["--doi", "10.1/x"]) == 1
+    assert "limitado las peticiones" in capsys.readouterr().err

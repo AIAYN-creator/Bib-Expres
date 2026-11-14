@@ -31,7 +31,7 @@ input paper
 
 ## Performance
 
-**200 articles in ~22 seconds**, starting from *Attention Is All You Need* with the default settings (2 generations, references + citations). That is a real run, not an estimate: [see the full example](docs/ejemplo.md) (in Spanish).
+**200 articles in ~22 seconds**, starting from *Attention Is All You Need* with the default settings (2 generations, references + citations). That is a real run, not an estimate: [see the full example](docs/ejemplo.md) (in Spanish). The time depends mostly on how fast OpenAlex answers that day: the same search, repeated in November 2026 with an empty cache, took 27–39 s.
 
 ## Download and use
 
@@ -116,6 +116,13 @@ Open questions:
 - Whether the library/CLI part ships on PyPI or only from GitHub.
 
 ## Version history
+
+### v2.3.0: progress bar, Excel export and a bilingual README
+
+- **Live progress while searching**: a progress bar with articles found over the cap, the generation and the paper being explored, plus "last activity X s ago" so you can tell a slow search from a stuck one (after 30 s it says the APIs are slow but the search is still running). A **Cancel** button stops the search and keeps what was found so far. The CLI shows the same as a single line on `stderr`; `--quiet` hides it.
+- **Excel export for literature reviews** (`--format xlsx`, or "Excel" in the app): title, authors, DOI as a link, topic, keywords, relevance score, and an empty "Other notes" column. Frozen header and filters, so sorting by author or by relevance is one click. Any text starting with `=` is stored as plain text, never as a formula.
+- **README in English** with a Spanish version (`README.es.md`), reorganised: what it does, the benchmark, download and use first, version history last.
+- New dependency: `openpyxl`. The `.exe` grows from ~16.4 MB to ~17 MB.
 
 ### v2.2.0: security patch, outdated libraries inside the `.exe`
 

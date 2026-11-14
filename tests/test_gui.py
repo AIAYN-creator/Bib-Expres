@@ -466,3 +466,19 @@ def test_api_test_library_link_builds_and_opens(monkeypatch):
     res = Api().test_library_link("https://proxy.example.edu/login?url=")
     assert res["status"] == "ok"
     assert opened[0].startswith("https://proxy.example.edu/login?url=https%3A%2F%2Fdoi.org%2F10.1038")
+
+def test_api_search_reports_rate_limit_as_error():
+    from bib_expres.sources.base import RateLimitedError
+
+    root = _paper()
+
+    class _LimitedOpenAlex(_FakeOpenAlex):
+        def get_references(self, paper, generation):
+            raise RateLimitedError("api.openalex.org", 37171)
+
+    api = Api(openalex_client=_LimitedOpenAlex(resolve_result=root), crossref_client=_FakeCrossref())
+    api.resolve("10.1/abc")
+    res = api.search({"generations": "1", "max_articles": "5", "modes": ["references"]})
+    assert res["status"] == "error"
+    assert "unas 10 horas" in res["message"]
+    assert api.get_progress()["status"] == "finished"

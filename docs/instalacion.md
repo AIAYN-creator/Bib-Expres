@@ -2,7 +2,7 @@
 
 ## Descargar el `.exe` (recomendado si no vas a usar la CLI)
 
-**[Descarga `bib-expres-gui.exe` desde Releases](https://github.com/AIAYN-creator/Bib-Expres/releases/latest)** (~15 MB) y ejecútalo — no hace falta instalar Python ni nada más. Ese enlace apunta siempre a la última versión publicada.
+**[Descarga `bib-expres-gui.exe` desde Releases](https://github.com/AIAYN-creator/Bib-Expres/releases/latest)** (~17 MB) y ejecútalo — no hace falta instalar Python ni nada más. Ese enlace apunta siempre a la última versión publicada.
 
 Windows puede avisar la primera vez porque el `.exe` no está firmado ("Windows protegió tu PC" → "Más información" → "Ejecutar de todas formas") — es un aviso conocido, no significa que algo vaya mal.
 
@@ -53,7 +53,7 @@ Alternativa a la CLI para quien prefiera no usar terminal. Con el paquete instal
 bib-expres-gui
 ```
 
-Abre una ventana de escritorio (usa el motor web del propio sistema — WebView2 en Windows, ya viene con Windows 10/11) con un formulario para el paper de entrada (DOI, ID/URL de arXiv, título o PDF), los parámetros de búsqueda, y exportación a BibTeX/RIS/CSL-JSON. Entre la búsqueda y la exportación hay una pantalla opcional de curación tipo Tinder: revisar cada candidato (con su abstract) y decidir guardar o descartar uno a uno, con botones, flechas del teclado o arrastrando la tarjeta. El email de contacto y la API key de Semantic Scholar también se pueden configurar desde dentro (icono de Ajustes), sin tocar el `.env` a mano.
+Abre una ventana de escritorio (usa el motor web del propio sistema — WebView2 en Windows, ya viene con Windows 10/11) con un formulario para el paper de entrada (DOI, ID/URL de arXiv, título o PDF), los parámetros de búsqueda, y exportación a BibTeX/RIS/CSL-JSON o Excel. Durante la búsqueda hay una barra de progreso con el artículo que se está explorando y "última actividad hace X s" (si pasa de 30 s avisa de que las APIs están tardando, pero la búsqueda sigue), y un botón para cancelar quedándote con lo encontrado hasta ese momento. Entre la búsqueda y la exportación hay una pantalla opcional de curación tipo Tinder: revisar cada candidato (con su abstract) y decidir guardar o descartar uno a uno, con botones, flechas del teclado o arrastrando la tarjeta. El email de contacto y la API key de Semantic Scholar también se pueden configurar desde dentro (icono de Ajustes), sin tocar el `.env` a mano.
 
 Probada de principio a fin con clics reales (no solo con tests automáticos): resolver un paper, ajustar parámetros, buscar, curar candidatos y exportar, todo funcionando.
 
@@ -75,7 +75,7 @@ Cada release publica el **SHA-256** del `.exe`. Para comprobar que lo que has de
 Get-FileHash .ib-expres-gui.exe -Algorithm SHA256
 ```
 
-El resultado queda en `dist/bib-expres-gui.exe` (~15 MB) — un único fichero, sin dependencias externas salvo el WebView2 que Windows 10/11 ya trae de fábrica. Como no está firmado, Windows puede mostrar un aviso de SmartScreen la primera vez ("Más información" > "Ejecutar de todas formas"), y el antivirus puede bloquearlo brevemente justo al terminar de construirlo (pasa de verdad, no es solo teórico).
+El resultado queda en `dist/bib-expres-gui.exe` (~17 MB) — un único fichero, sin dependencias externas salvo el WebView2 que Windows 10/11 ya trae de fábrica. Como no está firmado, Windows puede mostrar un aviso de SmartScreen la primera vez ("Más información" > "Ejecutar de todas formas"), y el antivirus puede bloquearlo brevemente justo al terminar de construirlo (pasa de verdad, no es solo teórico).
 
 ## Ejecutar los tests
 

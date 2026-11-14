@@ -38,7 +38,8 @@ bib-expres --input "Attention Is All You Need" --output bibliografia.bib  # titu
 | `--doc-types` | Tipos de documento permitidos, separados por coma (p.ej. `article,preprint`) — vocabulario de OpenAlex, sin curar | todos |
 | `--open-access-only` | Solo incluir artículos de acceso abierto | desactivado |
 | `--output` | Fichero de salida | `bibliografia.bib` |
-| `--format` | Formato de salida: `bibtex`, `ris` o `csljson` | se infiere de la extensión de `--output`, o `bibtex` |
+| `--format` | Formato de salida: `bibtex`, `ris`, `csljson` o `xlsx` (Excel) | se infiere de la extensión de `--output`, o `bibtex` |
+| `--quiet` | No mostrar la línea de progreso durante la búsqueda | desactivado |
 
 `--doc-types` y `--open-access-only` no afectan al paper padre — este nunca se descarta (ni por relevancia, ni por tipo, ni por acceso abierto), siempre aparece en el resultado. Confirmado con datos reales en [docs/ejemplo-v2.md](ejemplo-v2.md).
 
@@ -56,9 +57,39 @@ bib-expres --doi 10.1000/ejemplo \
 
 ## Salida
 
-BibTeX (`.bib`), RIS (`.ris`) o CSL-JSON (`.json`), según `--format` o la extensión de `--output`. Los tres son estándares, importables directamente en Zotero, Mendeley, JabRef o LaTeX (`\bibliography{...}` para BibTeX).
+BibTeX (`.bib`), RIS (`.ris`), CSL-JSON (`.json`) o Excel (`.xlsx`), según `--format` o la extensión de `--output`. Los tres primeros son estándares, importables directamente en Zotero, Mendeley, JabRef o LaTeX (`\bibliography{...}` para BibTeX).
+
+### Excel, para revisiones bibliográficas
+
+```bash
+bib-expres --input "Attention Is All You Need" --output revision.xlsx
+```
+
+Una fila por artículo, pensada para la primera ronda de una revisión:
+
+| Columna | Contenido |
+|---|---|
+| Título | título del artículo |
+| Autores | todos, separados por `; `, en el orden del artículo |
+| DOI | el DOI como enlace a `doi.org` (o a la ficha de OpenAlex si no tiene DOI) |
+| Tema | tema principal según OpenAlex |
+| Palabras clave | palabras clave según OpenAlex, separadas por `; ` |
+| Relevancia | el score de relevancia (0–1), como número: se puede ordenar de mayor a menor |
+| Otras notas | vacía, para tus anotaciones |
+
+La cabecera queda fija al hacer scroll y lleva autofiltro: ordenar por autor o por relevancia, o filtrar por tema, es un clic en las flechas de cada columna.
 
 **Dónde encontrarlo al terminar**: en la ruta que le des a `--output`, o en `bibliografia.bib` dentro del directorio desde el que ejecutaste el comando si no lo especificas. El programa no lo abre ni lo mueve a ningún sitio — simplemente ahí queda, esperando a que lo cojas (para importarlo en tu gestor de referencias, subirlo a otro sitio, lo que necesites).
+
+## Progreso
+
+Mientras busca, la CLI muestra una línea en la salida de errores (`stderr`) que se reescribe sobre sí misma: artículos encontrados sobre el tope, generación y el artículo que se está explorando. Desaparece al terminar. `--quiet` la oculta. La salida normal (`stdout`) queda solo para el resultado, así que se puede redirigir sin que se mezcle.
+
+```
+37/200 articulos -- generacion 2 -- Effective Approaches to Attention-based Neu
+```
+
+En la interfaz gráfica, lo mismo se ve como barra de progreso, con "última actividad hace X s" y un botón para cancelar quedándose con lo encontrado hasta ese momento ([detalle](instalacion.md#interfaz-gráfica)).
 
 ## Rendimiento
 
