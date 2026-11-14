@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 
 from bib_expres.gui.app import Api, _config_from_params, _paper_to_dict, save_env_settings
@@ -225,10 +227,13 @@ def test_api_export_without_excluded_indices_keeps_everyone(tmp_path):
 def test_api_get_and_save_settings(tmp_path, monkeypatch):
     monkeypatch.delenv("CONTACT_EMAIL", raising=False)
     monkeypatch.delenv("SEMANTIC_SCHOLAR_API_KEY", raising=False)
+    monkeypatch.delenv("LIBRARY_LINK_TEMPLATE", raising=False)
     monkeypatch.chdir(tmp_path)
 
     api = Api()
-    assert api.get_settings() == {"contact_email": "", "semantic_scholar_api_key": ""}
+    assert api.get_settings() == {
+        "contact_email": "", "semantic_scholar_api_key": "", "library_link_template": ""
+    }
 
     res = api.save_settings(
         {"CONTACT_EMAIL": "me@example.com", "SEMANTIC_SCHOLAR_API_KEY": "abc123"}
@@ -237,6 +242,7 @@ def test_api_get_and_save_settings(tmp_path, monkeypatch):
     assert api.get_settings() == {
         "contact_email": "me@example.com",
         "semantic_scholar_api_key": "abc123",
+        "library_link_template": "",
     }
     assert (tmp_path / ".env").exists()
 
@@ -397,3 +403,65 @@ def test_config_from_params_custom_language_requires_codes():
 
 def test_paper_to_dict_includes_language():
     assert _paper_to_dict(_paper(language="es"))["language"] == "es"
+
+
+# -- acceso institucional ----------------------------------------------------------
+
+
+@pytest.fixture
+def clean_access_env(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    for key in ("LIBRARY_LINK_TEMPLATE", "SUBSCRIBED_PUBLISHERS"):
+        monkeypatch.delenv(key, raising=False)
+    yield
+    for key in ("LIBRARY_LINK_TEMPLATE", "SUBSCRIBED_PUBLISHERS"):
+        monkeypatch.delenv(key, raising=False)
+
+
+def test_api_search_annotates_access_and_lists_publishers(clean_access_env):
+    root = _paper()
+    closed = _paper(
+        openalex_id="R1", doi="10.1/r1", title="Closed", open_access=False,
+        publisher_lineage=["Cell Press", "Elsevier BV"],
+    )
+    api = Api(
+        openalex_client=_FakeOpenAlex(resolve_result=root, references=[closed]),
+        crossref_client=_FakeCrossref(),
+    )
+    api.resolve("10.1/abc")
+    res = api.search(
+        {"generations": "1", "max_articles": "5", "modes": ["references"], "relevance_threshold": "0"}
+    )
+    assert res["publishers"] == [["Elsevier BV", 1]] or res["publishers"] == [("Elsevier BV", 1)]
+    by_title = {p["title"]: p for p in res["papers"]}
+    assert by_title["Closed"]["access_status"] == "unknown"  # sin editoriales marcadas
+    assert by_title["Closed"]["publisher"] == "Elsevier BV"
+
+    res2 = api.set_publishers(["Elsevier BV"])
+    by_title = {p["title"]: p for p in res2["papers"]}
+    assert by_title["Closed"]["access_status"] == "institution"
+    assert "SUBSCRIBED_PUBLISHERS=Elsevier BV" in (Path(".env")).read_text(encoding="utf-8")
+
+
+def test_api_save_settings_rejects_non_https_template(clean_access_env):
+    res = Api().save_settings({"LIBRARY_LINK_TEMPLATE": "http://proxy.example.edu/login?url="})
+    assert res["status"] == "error"
+    assert not Path(".env").exists()
+
+
+def test_api_open_link_only_http(monkeypatch):
+    opened = []
+    monkeypatch.setattr("bib_expres.gui.app.webbrowser.open", opened.append)
+    api = Api()
+    assert api.open_link("javascript:alert(1)")["status"] == "error"
+    assert api.open_link("file:///C:/Windows/system.ini")["status"] == "error"
+    assert api.open_link("https://doi.org/10.1/x")["status"] == "ok"
+    assert opened == ["https://doi.org/10.1/x"]
+
+
+def test_api_test_library_link_builds_and_opens(monkeypatch):
+    opened = []
+    monkeypatch.setattr("bib_expres.gui.app.webbrowser.open", opened.append)
+    res = Api().test_library_link("https://proxy.example.edu/login?url=")
+    assert res["status"] == "ok"
+    assert opened[0].startswith("https://proxy.example.edu/login?url=https%3A%2F%2Fdoi.org%2F10.1038")

@@ -403,3 +403,26 @@ def test_parse_openalex_work_language():
     paper = parse_openalex_work({"id": "https://openalex.org/W1", "display_name": "X", "language": "es"})
     assert paper.language == "es"
     assert parse_openalex_work({"id": "https://openalex.org/W1", "display_name": "X"}).language is None
+
+
+def test_parse_openalex_work_publisher_and_oa_link():
+    raw = {
+        "id": "https://openalex.org/W1",
+        "display_name": "X",
+        "primary_location": {"source": {
+            "host_organization_name": "Cell Press",
+            "host_organization_lineage_names": ["Cell Press", "Elsevier BV"],
+        }},
+        "open_access": {"is_oa": True, "oa_status": "bronze", "oa_url": "http://www.cell.com/a.pdf"},
+    }
+    paper = parse_openalex_work(raw)
+    assert paper.publisher_lineage == ["Cell Press", "Elsevier BV"]
+    assert paper.oa_status == "bronze"
+    assert paper.oa_url == "http://www.cell.com/a.pdf"
+
+
+def test_parse_openalex_work_publisher_without_lineage():
+    raw = {"id": "https://openalex.org/W1", "display_name": "X",
+           "primary_location": {"source": {"host_organization_name": "Wiley"}}}
+    assert parse_openalex_work(raw).publisher_lineage == ["Wiley"]
+    assert parse_openalex_work({"id": "https://openalex.org/W1", "display_name": "X"}).publisher_lineage == []

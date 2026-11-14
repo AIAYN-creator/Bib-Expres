@@ -5,6 +5,7 @@ import re
 from pathlib import Path
 from urllib.parse import quote
 
+from .access import ACCESS_LABELS, is_openable_url
 from .models import Paper
 
 
@@ -145,6 +146,8 @@ XLSX_COLUMNS = [
     ("Tema", 30),
     ("Palabras clave", 40),
     ("Relevancia", 11),
+    ("Acceso", 22),
+    ("Enlace de acceso", 30),
     ("Otras notas", 45),
 ]
 
@@ -200,7 +203,14 @@ def write_xlsx(papers: list[Paper], path: str) -> None:
             score_cell = ws.cell(row=row, column=6, value=round(paper.relevance_score, 3))
             score_cell.number_format = "0.00"
 
-        notes = ws.cell(row=row, column=7)
+        if paper.access_status:
+            text_cell(row, 7, ACCESS_LABELS.get(paper.access_status, paper.access_status))
+        if is_openable_url(paper.access_url):
+            link_cell = text_cell(row, 8, "abrir")
+            link_cell.hyperlink = paper.access_url
+            link_cell.style = "Hyperlink"
+
+        notes = ws.cell(row=row, column=9)
         notes.alignment = Alignment(wrap_text=True, vertical="top")
 
     ws.freeze_panes = "A2"

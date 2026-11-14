@@ -199,3 +199,23 @@ details.advanced summary { cursor: pointer; color: var(--muted); font-size: 0.9r
 .curation-buttons button { min-width: 140px; }
 
 #param-languages { margin-top: 0.4rem; margin-bottom: 0.9rem; }
+
+.paper-row { display: flex; gap: 0.75rem; align-items: flex-start; }
+.paper-row .paper-main { flex: 1; min-width: 0; }
+.paper-row .paper-side { display: flex; flex-direction: column; align-items: flex-end; gap: 0.25rem; }
+.access-badge {
+  font-size: 0.72rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  white-space: nowrap;
+  background: #f3f4f6;
+  color: var(--muted);
+}
+.access-badge.open, .access-badge.open_bronze { background: #dcfce7; color: #166534; }
+.access-badge.institution { background: var(--chip-bg); color: #3730a3; }
+.access-badge.none { background: #fee2e2; color: #991b1b; }
+button.small { padding: 0.2rem 0.6rem; font-size: 0.78rem; }
+.publisher-list { max-height: 180px; overflow-y: auto; margin: 0.5rem 0; }
+#institution-panel { margin-bottom: 0.75rem; }
+#institution-panel .checkbox { display: block; margin: 0.2rem 0; }
+#institution-panel .hint { margin-top: 0.5rem; }

@@ -259,26 +259,121 @@
 
   let lastResultsCount = 0;
   let lastResultsPapers = [];
+  let lastResultsCancelled = false;
   let currentExcludedIndices = [];
+
+  // Indices ocultos por "ocultar lo que no puedo leer". El padre (indice 0)
+  // nunca se oculta, igual que con el resto de filtros.
+  function hiddenIndices() {
+    const hideUnreadable = document.getElementById("hide-unreadable").checked;
+    const hideUnknown = hideUnreadable && document.getElementById("hide-unknown").checked;
+    const hidden = [];
+    lastResultsPapers.forEach((p, i) => {
+      if (i === 0 || !hideUnreadable) return;
+      if (p.access_status === "none" || (hideUnknown && (p.access_status === "unknown" || !p.access_status))) {
+        hidden.push(i);
+      }
+    });
+    return hidden;
+  }
+
+  async function openExternal(url) {
+    try {
+      await window.pywebview.api.open_link(url);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  function renderResults() {
+    const hidden = new Set(hiddenIndices());
+    const visible = lastResultsCount - hidden.size;
+    let heading = `${lastResultsCount} artículos encontrados`;
+    if (hidden.size) {
+      const ocultos = hidden.size === 1 ? "1 oculto" : `${hidden.size} ocultos`;
+      heading = `${visible} de ${lastResultsCount} artículos (${ocultos}: no los puedes leer)`;
+    }
+    if (lastResultsCancelled) heading += " -- búsqueda cancelada";
+    document.getElementById("results-count").textContent = heading;
+
+    const list = document.getElementById("results-list");
+    list.innerHTML = "";
+    lastResultsPapers.forEach((paper, i) => {
+      if (hidden.has(i)) return;
+      const row = document.createElement("div");
+      row.className = "paper-row";
+      row.innerHTML =
+        `<div class="paper-main"><div class="title"></div><div class="meta"></div></div>` +
+        `<div class="paper-side"><span class="access-badge"></span></div>`;
+      row.querySelector(".title").textContent = paper.title;
+      row.querySelector(".meta").textContent = paperMeta(paper);
+      const badge = row.querySelector(".access-badge");
+      badge.textContent = paper.access_label || "no comprobado";
+      badge.classList.add(paper.access_status || "unknown");
+      if (paper.access_url) {
+        const btn = document.createElement("button");
+        btn.className = "secondary small";
+        btn.textContent = paper.access_status === "open" || paper.access_status === "open_bronze"
+          ? "Abrir versión libre"
+          : "Abrir con mi biblioteca";
+        btn.addEventListener("click", () => openExternal(paper.access_url));
+        row.querySelector(".paper-side").appendChild(btn);
+      }
+      list.appendChild(row);
+    });
+  }
+
+  function renderPublisherList(publishers, selected) {
+    const box = document.getElementById("publisher-list");
+    box.innerHTML = "";
+    const chosen = new Set(selected || []);
+    if (!publishers.length) {
+      const p = document.createElement("p");
+      p.className = "hint";
+      p.textContent = "Ningún resultado trae editorial conocida.";
+      box.appendChild(p);
+      return;
+    }
+    publishers.forEach(([name, count]) => {
+      const label = document.createElement("label");
+      label.className = "checkbox";
+      const input = document.createElement("input");
+      input.type = "checkbox";
+      input.className = "param-publisher";
+      input.value = name;
+      input.checked = chosen.has(name);
+      label.appendChild(input);
+      label.appendChild(document.createTextNode(` ${name} (${count})`));
+      box.appendChild(label);
+    });
+  }
 
   function showResultsScreen(res) {
     lastResultsCount = res.count;
     lastResultsPapers = res.papers;
-    document.getElementById("results-count").textContent = res.cancelled
-      ? `${res.count} artículos encontrados (búsqueda cancelada)`
-      : `${res.count} artículos encontrados`;
-    const list = document.getElementById("results-list");
-    list.innerHTML = "";
-    res.papers.forEach((paper) => {
-      const row = document.createElement("div");
-      row.className = "paper-row";
-      row.innerHTML = `<div class="title"></div><div class="meta"></div>`;
-      row.querySelector(".title").textContent = paper.title;
-      row.querySelector(".meta").textContent = paperMeta(paper);
-      list.appendChild(row);
-    });
+    lastResultsCancelled = !!res.cancelled;
+    renderPublisherList(res.publishers || [], res.selected_publishers || []);
+    document.getElementById("publishers-saved").classList.add("hidden");
+    renderResults();
     showScreen("screen-results");
   }
+
+  document.getElementById("hide-unreadable").addEventListener("change", renderResults);
+  document.getElementById("hide-unknown").addEventListener("change", renderResults);
+
+  document.getElementById("save-publishers-btn").addEventListener("click", async () => {
+    const chosen = Array.from(document.querySelectorAll(".param-publisher:checked")).map((el) => el.value);
+    try {
+      const res = await window.pywebview.api.set_publishers(chosen);
+      if (res.status === "ok") {
+        lastResultsPapers = res.papers;
+        renderResults();
+        document.getElementById("publishers-saved").classList.remove("hidden");
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  });
 
   document.getElementById("new-search-btn").addEventListener("click", () => {
     inputRaw.value = "";
@@ -293,13 +388,14 @@
   }
 
   document.getElementById("export-btn").addEventListener("click", () => {
-    currentExcludedIndices = [];
+    currentExcludedIndices = hiddenIndices();
     openExportScreen();
   });
 
   // -- Pantalla 4b: curacion tipo Tinder (opcional) ------------------------------
 
   let curationPapers = [];
+  let curationOrder = []; // indice real en lastResultsPapers de cada tarjeta
   let curationIndex = 0;
   let curationDiscarded = new Set();
 
@@ -329,18 +425,20 @@
   }
 
   function decideCuration(keep) {
-    if (!keep) curationDiscarded.add(curationIndex);
+    if (!keep) curationDiscarded.add(curationOrder[curationIndex]);
     curationIndex += 1;
     showCurationCard();
   }
 
   function finishCuration() {
-    currentExcludedIndices = Array.from(curationDiscarded);
+    currentExcludedIndices = Array.from(new Set([...curationDiscarded, ...hiddenIndices()]));
     openExportScreen();
   }
 
   document.getElementById("curate-btn").addEventListener("click", () => {
-    curationPapers = lastResultsPapers;
+    const hidden = new Set(hiddenIndices());
+    curationOrder = lastResultsPapers.map((_, i) => i).filter((i) => !hidden.has(i));
+    curationPapers = curationOrder.map((i) => lastResultsPapers[i]);
     curationIndex = 0;
     curationDiscarded = new Set();
     if (curationPapers.length === 0) {
@@ -440,6 +538,7 @@
     const settings = await window.pywebview.api.get_settings();
     document.getElementById("settings-email").value = settings.contact_email || "";
     document.getElementById("settings-key").value = settings.semantic_scholar_api_key || "";
+    document.getElementById("settings-library").value = settings.library_link_template || "";
     document.getElementById("settings-saved").classList.add("hidden");
     showScreen("screen-settings");
   });
@@ -449,6 +548,7 @@
     const res = await window.pywebview.api.save_settings({
       CONTACT_EMAIL: document.getElementById("settings-email").value.trim(),
       SEMANTIC_SCHOLAR_API_KEY: document.getElementById("settings-key").value.trim(),
+      LIBRARY_LINK_TEMPLATE: document.getElementById("settings-library").value.trim(),
     });
     if (res && res.status === "error") {
       saved.textContent = res.message || "No se han podido guardar los ajustes.";
@@ -456,6 +556,21 @@
     } else {
       saved.textContent = "Guardado.";
       saved.classList.remove("error-text");
+    }
+    saved.classList.remove("hidden");
+  });
+
+  document.getElementById("settings-library-test-btn").addEventListener("click", async () => {
+    const saved = document.getElementById("settings-saved");
+    const res = await window.pywebview.api.test_library_link(
+      document.getElementById("settings-library").value.trim()
+    );
+    if (res.status === "ok") {
+      saved.textContent = "Abierto en tu navegador: si tras el login ves el artículo completo, el enlace funciona.";
+      saved.classList.remove("error-text");
+    } else {
+      saved.textContent = res.message || "Enlace no válido.";
+      saved.classList.add("error-text");
     }
     saved.classList.remove("hidden");
   });

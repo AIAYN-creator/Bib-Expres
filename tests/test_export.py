@@ -137,7 +137,8 @@ def test_write_xlsx_columns_and_values(tmp_path):
     ws = _read_xlsx(out)
     headers = [c.value for c in ws[1]]
     assert headers == [
-        "Título", "Autores", "DOI", "Tema", "Palabras clave", "Relevancia", "Otras notas"
+        "Título", "Autores", "DOI", "Tema", "Palabras clave", "Relevancia",
+        "Acceso", "Enlace de acceso", "Otras notas",
     ]
     row = [c.value for c in ws[2]]
     assert row[0] == "Attention Is All You Need"
@@ -146,10 +147,10 @@ def test_write_xlsx_columns_and_values(tmp_path):
     assert row[3] == "Natural Language Processing Techniques"
     assert row[4] == "transformer; self-attention"
     assert row[5] == pytest.approx(0.823)
-    assert row[6] is None
+    assert row[8] is None  # Otras notas, vacia
     assert ws["C2"].hyperlink.target == "https://doi.org/10.48550/arxiv.1706.03762"
     assert ws.freeze_panes == "A2"
-    assert ws.auto_filter.ref == "A1:G2"
+    assert ws.auto_filter.ref == "A1:I2"
 
 
 def test_write_xlsx_without_doi_links_to_openalex(tmp_path):
@@ -186,3 +187,19 @@ def test_write_xlsx_empty_list_still_has_headers(tmp_path):
 
 def test_infer_format_xlsx():
     assert infer_format("revision.xlsx") == "xlsx"
+
+
+def test_write_xlsx_access_columns(tmp_path):
+    out = tmp_path / "rev.xlsx"
+    paper = _paper(access_status="open", access_url="https://repo.edu/a.pdf")
+    write([paper], str(out), format="xlsx")
+    ws = _read_xlsx(out)
+    assert ws["G2"].value == "abierto"
+    assert ws["H2"].hyperlink.target == "https://repo.edu/a.pdf"
+
+
+def test_write_xlsx_ignores_unsafe_access_url(tmp_path):
+    out = tmp_path / "rev.xlsx"
+    write([_paper(access_status="open", access_url="javascript:alert(1)")], str(out), format="xlsx")
+    ws = _read_xlsx(out)
+    assert ws["H2"].hyperlink is None

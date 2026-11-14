@@ -37,6 +37,14 @@ def _reconstruct_abstract(inverted_index: dict[str, list[int]] | None) -> str | 
     return " ".join(positions[i] for i in sorted(positions))
 
 
+def _publisher_lineage(source: dict) -> list[str]:
+    lineage = [n for n in source.get("host_organization_lineage_names") or [] if n]
+    if lineage:
+        return lineage
+    name = source.get("host_organization_name")
+    return [name] if name else []
+
+
 def _parse_work(
     raw: dict,
     *,
@@ -75,6 +83,9 @@ def _parse_work(
         abstract=_reconstruct_abstract(raw.get("abstract_inverted_index")),
         topic=(raw.get("primary_topic") or {}).get("display_name"),
         language=raw.get("language"),
+        publisher_lineage=_publisher_lineage(source),
+        oa_url=(raw.get("open_access") or {}).get("oa_url"),
+        oa_status=(raw.get("open_access") or {}).get("oa_status"),
         keywords=[
             k["display_name"] for k in raw.get("keywords") or [] if k.get("display_name")
         ],

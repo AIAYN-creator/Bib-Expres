@@ -6,6 +6,7 @@ import sys
 from dotenv import load_dotenv
 
 from . import __version__
+from .access import AccessConfig, InvalidLibraryTemplate, annotate_access, is_readable
 from .config import ExpansionMode, InstallConfig, RelevanceWeights, SearchConfig
 from .expansion import ProgressEvent, expand
 from .export import infer_format, write
@@ -120,6 +121,30 @@ def _build_parser() -> argparse.ArgumentParser:
         "sin idioma conocido no se descartan.",
     )
     parser.add_argument(
+        "--library-link",
+        default=None,
+        help="Plantilla de enlace de tu biblioteca (EZproxy, OpenAthens, OpenURL), p.ej. "
+        "https://proxy.tu-uni.es/login?url= -- admite {doi} y {url}. Por defecto, "
+        "LIBRARY_LINK_TEMPLATE del .env",
+    )
+    parser.add_argument(
+        "--publishers",
+        default=None,
+        help="Editoriales que cubre tu institucion, separadas por ';' (p.ej. "
+        "'Elsevier BV;Springer Nature'). Por defecto, SUBSCRIBED_PUBLISHERS del .env",
+    )
+    parser.add_argument(
+        "--accessible-only",
+        action="store_true",
+        help="Quitar del resultado lo que no puedes leer: ni abierto ni de una editorial "
+        "marcada. Los articulos sin datos para comprobarlo se mantienen",
+    )
+    parser.add_argument(
+        "--strict-access",
+        action="store_true",
+        help="Con --accessible-only, quitar tambien los articulos cuyo acceso no se puede comprobar",
+    )
+    parser.add_argument(
         "--quiet",
         action="store_true",
         help="No mostrar la linea de progreso durante la busqueda",
@@ -203,6 +228,15 @@ def main(argv: list[str] | None = None) -> int:
             file=sys.stderr,
         )
 
+    try:
+        access_config = AccessConfig.from_strings(
+            args.library_link if args.library_link is not None else install.library_link_template,
+            args.publishers if args.publishers is not None else install.subscribed_publishers,
+        )
+    except InvalidLibraryTemplate as exc:
+        print(f"Error en la plantilla de enlace de la biblioteca: {exc}", file=sys.stderr)
+        return 1
+
     openalex = OpenAlexClient(contact_email=install.contact_email)
     crossref = CrossrefClient(contact_email=install.contact_email)
     semantic_scholar = SemanticScholarClient(
@@ -231,6 +265,16 @@ def main(argv: list[str] | None = None) -> int:
         semantic_scholar_client=semantic_scholar,
         on_progress=None if args.quiet else _print_progress,
     )
+
+    annotate_access(results, access_config)
+    if args.accessible_only:
+        before = len(results)
+        results = [
+            p
+            for p in results
+            if p is root or is_readable(p.access_status, include_unknown=not args.strict_access)
+        ]
+        print(f"{before - len(results)} articulos quitados por --accessible-only", file=sys.stderr)
 
     output_format = args.format or infer_format(args.output)
     try:

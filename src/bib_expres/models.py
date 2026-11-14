@@ -36,3 +36,10 @@ class Paper:
     topic: str | None = None
     keywords: list[str] = field(default_factory=list)
     language: str | None = None  # ISO 639-1 segun OpenAlex: 'en', 'es'...
+    # Editorial y su cadena de matrices segun OpenAlex: ['Cell Press', 'Elsevier BV']
+    publisher_lineage: list[str] = field(default_factory=list)
+    oa_url: str | None = None  # enlace a la version abierta, si la hay
+    oa_status: str | None = None  # gold / green / hybrid / bronze / closed...
+    # Calculados por access.annotate_access(), no vienen de la API:
+    access_status: str | None = None
+    access_url: str | None = None

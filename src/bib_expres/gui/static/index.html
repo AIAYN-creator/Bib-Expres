@@ -121,6 +121,17 @@
   <!-- Pantalla 4: resultados -->
   <section id="screen-results" class="screen hidden">
     <h2 id="results-count"></h2>
+    <details id="institution-panel" class="advanced">
+      <summary>Mi institución: qué puedo leer</summary>
+      <p class="hint">Marca las editoriales que cubre tu institución. Es aproximado: un contrato no siempre cubre todas sus revistas ni todos los años.</p>
+      <div id="publisher-list" class="publisher-list"></div>
+      <div class="row">
+        <button id="save-publishers-btn" class="secondary">Guardar mis editoriales</button>
+        <span id="publishers-saved" class="success hidden">Guardado.</span>
+      </div>
+      <label class="checkbox"><input id="hide-unreadable" type="checkbox"> Ocultar lo que no puedo leer</label>
+      <label class="checkbox"><input id="hide-unknown" type="checkbox"> ...y también aquello cuyo acceso no se puede comprobar</label>
+    </details>
     <div id="results-list" class="paper-list"></div>
     <div class="row">
       <button id="new-search-btn" class="secondary">Nueva búsqueda</button>
@@ -182,6 +193,12 @@
     <div class="field">
       <label for="settings-key">API key de Semantic Scholar (opcional)</label>
       <input id="settings-key" type="text" placeholder="Sin ella, el modo 'similares' funciona con rate limit más bajo">
+    </div>
+    <div class="field">
+      <label for="settings-library">Enlace de tu biblioteca (opcional)</label>
+      <input id="settings-library" type="text" placeholder="p.ej. https://proxy.tu-uni.es/login?url=">
+      <p class="hint">Para abrir los papers a través de tu biblioteca, como si estuvieras en el campus. Cómo encontrarlo: entra desde casa a un artículo desde la web de tu biblioteca y mira la URL; si contiene <code>ezproxy</code>, <code>login?url=</code> u <code>openathens</code>, la parte de antes del enlace al artículo es lo que va aquí. Admite <code>{doi}</code> y <code>{url}</code>.</p>
+      <button id="settings-library-test-btn" class="secondary">Probar con un paper conocido</button>
     </div>
     <p id="settings-saved" class="success hidden">Guardado.</p>
     <div class="row">

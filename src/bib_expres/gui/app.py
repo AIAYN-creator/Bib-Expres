@@ -3,11 +3,23 @@ from __future__ import annotations
 import os
 import threading
 import time
+import webbrowser
 from pathlib import Path
 
 import webview
 from dotenv import load_dotenv
 
+from ..access import (
+    ACCESS_LABELS,
+    TEST_DOI,
+    AccessConfig,
+    annotate_access,
+    format_publishers,
+    is_openable_url,
+    library_link,
+    publisher_counts,
+    validate_library_template,
+)
 from ..config import ExpansionMode, InstallConfig, RelevanceWeights, SearchConfig
 from ..expansion import ProgressEvent, expand
 from ..export import write
@@ -23,7 +35,12 @@ from ..sources.openalex import OpenAlexClient
 from ..sources.semantic_scholar import SemanticScholarClient
 
 _STATIC_DIR = Path(__file__).parent / "static"
-_ENV_KEYS = ("CONTACT_EMAIL", "SEMANTIC_SCHOLAR_API_KEY")
+_ENV_KEYS = (
+    "CONTACT_EMAIL",
+    "SEMANTIC_SCHOLAR_API_KEY",
+    "LIBRARY_LINK_TEMPLATE",
+    "SUBSCRIBED_PUBLISHERS",
+)
 
 
 def _paper_to_dict(paper: Paper) -> dict:
@@ -39,6 +56,10 @@ def _paper_to_dict(paper: Paper) -> dict:
         "open_access": paper.open_access,
         "abstract": paper.abstract,
         "language": paper.language,
+        "publisher": paper.publisher_lineage[-1] if paper.publisher_lineage else None,
+        "access_status": paper.access_status,
+        "access_label": ACCESS_LABELS.get(paper.access_status or "", None),
+        "access_url": paper.access_url if is_openable_url(paper.access_url) else None,
     }
 
 
@@ -85,6 +106,8 @@ def save_env_settings(settings: dict, env_path: Path | None = None) -> None:
     """Lee el .env existente (si lo hay), actualiza solo las claves conocidas y
     reescribe -- no toca ninguna otra linea/clave que ya hubiera."""
     settings = {k: _clean_env_value(v) for k, v in settings.items() if k in _ENV_KEYS}
+    if "LIBRARY_LINK_TEMPLATE" in settings:
+        settings["LIBRARY_LINK_TEMPLATE"] = validate_library_template(settings["LIBRARY_LINK_TEMPLATE"])
     path = env_path or Path(".env")
     existing_lines = path.read_text(encoding="utf-8").splitlines() if path.exists() else []
 
@@ -196,17 +219,66 @@ class Api:
             on_progress=self._record_progress,
             should_cancel=self._cancel_requested.is_set,
         )
+        access = self._access_config()
+        annotate_access(self._results, access)
         return {
             "status": "ok",
             "count": len(self._results),
             "cancelled": self._cancel_requested.is_set(),
             "papers": [_paper_to_dict(p) for p in self._results],
+            "publishers": publisher_counts(self._results[1:]),
+            "selected_publishers": sorted(access.publishers),
         }
 
     def _record_progress(self, event: ProgressEvent) -> None:
         with self._progress_lock:
             self._progress = event
             self._last_activity = time.monotonic()
+
+    # -- Acceso institucional ---------------------------------------------------
+
+    @staticmethod
+    def _access_config() -> AccessConfig:
+        install = InstallConfig.from_env()
+        try:
+            return AccessConfig.from_strings(
+                install.library_link_template, install.subscribed_publishers
+            )
+        except ValueError:
+            # Plantilla invalida en un .env editado a mano: se ignora la plantilla
+            # en vez de tumbar la busqueda; Ajustes la marcara al guardar.
+            return AccessConfig.from_strings(None, install.subscribed_publishers)
+
+    def set_publishers(self, publishers: list[str]) -> dict:
+        """Guarda las editoriales marcadas y recalcula el acceso de los resultados
+        ya obtenidos, sin repetir la busqueda."""
+        chosen = {str(p).strip() for p in publishers or [] if str(p).strip()}
+        try:
+            save_env_settings({"SUBSCRIBED_PUBLISHERS": format_publishers(chosen)})
+        except ValueError as exc:
+            return {"status": "error", "message": str(exc)}
+        os.environ["SUBSCRIBED_PUBLISHERS"] = format_publishers(chosen)
+        annotate_access(self._results, self._access_config())
+        return {"status": "ok", "papers": [_paper_to_dict(p) for p in self._results]}
+
+    def open_link(self, url: str) -> dict:
+        """Abre un enlace en el navegador del sistema (no dentro de la app). Solo
+        http(s): las URLs de acceso abierto vienen de una API externa."""
+        if not is_openable_url(url):
+            return {"status": "error", "message": "enlace no valido"}
+        webbrowser.open(url)
+        return {"status": "ok"}
+
+    def test_library_link(self, template: str) -> dict:
+        try:
+            cleaned = validate_library_template(template)
+        except ValueError as exc:
+            return {"status": "error", "message": str(exc)}
+        if not cleaned:
+            return {"status": "error", "message": "escribe primero la plantilla"}
+        url = library_link(cleaned, TEST_DOI)
+        webbrowser.open(url)
+        return {"status": "ok", "url": url}
 
     def get_progress(self) -> dict:
         """Lo consulta la GUI cada ~0,5 s mientras dura search(). `idle_seconds`
@@ -259,6 +331,7 @@ class Api:
         return {
             "contact_email": os.environ.get("CONTACT_EMAIL", ""),
             "semantic_scholar_api_key": os.environ.get("SEMANTIC_SCHOLAR_API_KEY", ""),
+            "library_link_template": os.environ.get("LIBRARY_LINK_TEMPLATE", ""),
         }
 
     def save_settings(self, settings: dict) -> dict:
@@ -267,7 +340,7 @@ class Api:
         except ValueError as exc:
             return {"status": "error", "message": str(exc)}
         for key in _ENV_KEYS:
-            if settings.get(key):
+            if key in settings:
                 os.environ[key] = _clean_env_value(settings[key])
         return {"status": "ok"}
 

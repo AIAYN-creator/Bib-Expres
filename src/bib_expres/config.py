@@ -50,10 +50,14 @@ class SearchConfig:
 class InstallConfig:
     contact_email: str | None
     semantic_scholar_api_key: str | None
+    library_link_template: str | None = None
+    subscribed_publishers: str | None = None
 
     @classmethod
     def from_env(cls) -> "InstallConfig":
         return cls(
             contact_email=os.environ.get("CONTACT_EMAIL") or None,
             semantic_scholar_api_key=os.environ.get("SEMANTIC_SCHOLAR_API_KEY") or None,
+            library_link_template=os.environ.get("LIBRARY_LINK_TEMPLATE") or None,
+            subscribed_publishers=os.environ.get("SUBSCRIBED_PUBLISHERS") or None,
         )

@@ -162,3 +162,22 @@ def test_language_flag_rejects_garbage():
     parser = _build_parser()
     with pytest.raises(SystemExit):
         parser.parse_args(["--doi", "10.1/x", "--language", "es;drop"])
+
+
+def test_access_flags_parse():
+    args = _build_parser().parse_args(
+        ["--doi", "10.1/x", "--library-link", "https://p.edu/login?url=", "--publishers", "A;B",
+         "--accessible-only", "--strict-access"]
+    )
+    assert args.library_link == "https://p.edu/login?url="
+    assert args.publishers == "A;B"
+    assert args.accessible_only and args.strict_access
+
+
+def test_invalid_library_link_fails_before_searching(monkeypatch, capsys):
+    from bib_expres import cli
+
+    monkeypatch.setattr(cli, "expand", lambda *a, **k: pytest.fail("no deberia buscar"))
+    code = cli.main(["--doi", "10.1/x", "--library-link", "http://insecure.edu/?url="])
+    assert code == 1
+    assert "https" in capsys.readouterr().err
