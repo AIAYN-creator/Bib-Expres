@@ -1,0 +1,36 @@
+# Versiones exactas con las que se construye bib-expres-gui.exe (Windows).
+#
+# pyproject.toml solo declara minimos; el .exe empaqueta lo que haya instalado
+# en el entorno de build, asi que aqui se fija exactamente que va dentro.
+# Se actualiza a conciencia (no por inercia) y el CI pasa pip-audit sobre este
+# fichero cada semana -- si aparece una CVE nueva, el CI avisa aunque no haya
+# commits.
+#
+# Uso:  pip install -r packaging/requirements-build.txt && pip install --no-deps -e .
+#       pyinstaller packaging/bib-expres-gui.spec
+
+# -- Dependencias de bib_expres (van dentro del .exe) --
+requests==2.34.2
+urllib3==2.8.0
+certifi==2026.10.23
+charset-normalizer==3.4.9
+idna==3.18
+python-dotenv==1.2.2
+pypdf==7.1.0
+pywebview==6.2.1
+bottle==0.13.4
+proxy_tools==0.1.0
+typing_extensions==4.16.0
+pythonnet==3.1.0
+clr_loader==0.3.1
+cffi==2.1.1
+pycparser==3.0
+
+# -- Herramienta de build (no va dentro del .exe, pero genera el binario) --
+pyinstaller==6.22.0
+pyinstaller-hooks-contrib==2026.6
+altgraph==0.17.5
+pefile==2024.8.26
+pywin32-ctypes==0.2.3
+packaging==26.3
+setuptools==84.1.0

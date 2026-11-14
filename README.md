@@ -100,6 +100,27 @@ El `.exe` de la GUI salía con el icono genérico de PyInstaller: el `.spec` no 
 
 Se añadió `packaging/icon.ico` (nodo raíz ramificándose en tres — el snowballing de citas que hace la app) referenciado desde `EXE(icon=...)` en `packaging/bib-expres-gui.spec`. Sin cambios de comportamiento: solo el icono en Explorador, menú Inicio, barra de tareas y la propia ventana.
 
+## v2.2.0 — parche de seguridad: librerías desactualizadas dentro del `.exe`
+
+Una segunda auditoría de seguridad, centrada esta vez en lo que añadió v2 (el `.exe` y la GUI), encontró que el `.exe` publicado llevaba dentro versiones de tres librerías con vulnerabilidades conocidas, publicadas *después* de construirlo:
+
+- **`pypdf`** (lee el PDF cuando le das un PDF como paper padre): un PDF fabricado a propósito podía dejar la app colgada o comiéndose la memoria. No permitía ejecutar código, pero sí bloquear la app con un fichero que suele venir de internet.
+- **`urllib3`** (la conexión HTTP con las APIs): fallos en cómo limita respuestas comprimidas muy grandes.
+- **`certifi`** (la lista de autoridades de certificados en las que confía la conexión HTTPS): incluía una autoridad ya retirada.
+
+**Arreglado**:
+
+- Las tres librerías, actualizadas a versiones sin problemas conocidos (mínimos nuevos en `pyproject.toml`).
+- El `.exe` se construye ahora con versiones exactas fijadas en `packaging/requirements-build.txt`, en vez de con lo que hubiera instalado ese día.
+- El CI pasa `pip-audit` **cada semana**, aunque no haya commits. La razón de fondo de este parche es que antes solo se auditaba al hacer push, así que nadie se enteró de estas vulnerabilidades cuando salieron.
+- Arreglos menores de paso:
+  - Un PDF raro ya no deja la GUI esperando sin mensaje.
+  - El límite de 10 MB por respuesta de las APIs se aplica mientras se descarga, no después.
+  - Los ajustes de la GUI ya no aceptan saltos de línea que rompan el `.env`.
+- Cada release publica el SHA-256 del `.exe`, para comprobar que el fichero descargado es el que se subió (cómo hacerlo en [docs/instalacion.md](docs/instalacion.md)).
+
+No hace falta ninguna acción manual: basta con descargar el `.exe` nuevo de Releases (o actualizar con `pip install -e .`). Sin cambios de configuración ni de comportamiento visible.
+
 ## Qué queda para v3
 
 Todavía sin planificar en detalle — apuntado aquí como idea, igual que empezó v2:

@@ -5,6 +5,10 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  schedule:
+    # Lunes 06:00 UTC -- pip-audit tambien sin commits, para enterarse de CVEs
+    # nuevas en dependencias que ya van dentro del .exe publicado.
+    - cron: "0 6 * * 1"
 
 jobs:
   test:
@@ -42,5 +46,8 @@ jobs:
       - name: Instalar el paquete
         run: pip install -e ".[dev]"
 
-      - name: pip-audit
+      - name: pip-audit (entorno de desarrollo)
         run: pip-audit
+
+      - name: pip-audit (versiones exactas del .exe)
+        run: pip-audit --no-deps --disable-pip -r packaging/requirements-build.txt

@@ -37,6 +37,8 @@ Y rellena:
 
 **El `.env` real nunca se commitea** — ya está excluido en `.gitignore`.
 
+Ojo: la API key se guarda **en texto plano** en ese `.env` (también cuando la configuras desde los Ajustes de la GUI, que escribe el `.env` en la carpeta desde la que abres la app). Es lo normal en una app de escritorio local, pero no compartas esa carpeta tal cual (un zip, una carpeta sincronizada con otra gente…) sin quitar antes el `.env`.
+
 ## Verificar la instalación
 
 ```bash
@@ -60,8 +62,17 @@ Probada de principio a fin con clics reales (no solo con tests automáticos): re
 Alternativa a descargarlo de Releases (arriba) — para verificar el build, modificar el código, o generarlo en una plataforma sin release publicado. Requiere haber clonado el repo:
 
 ```bash
-pip install -e ".[packaging]"
+pip install -r packaging/requirements-build.txt
+pip install --no-deps -e .
 pyinstaller packaging/bib-expres-gui.spec
+```
+
+`packaging/requirements-build.txt` fija las versiones exactas que van dentro del `.exe` (el `pyproject.toml` solo pone mínimos). Así el binario no depende de lo que tengas instalado ese día, y el CI pasa `pip-audit` sobre ese fichero cada semana para avisar si sale una vulnerabilidad nueva en algo que ya está publicado. Con `pip install -e ".[packaging]"` también funciona, pero empaqueta las versiones que haya en tu entorno.
+
+Cada release publica el **SHA-256** del `.exe`. Para comprobar que lo que has descargado es exactamente lo que se subió, en PowerShell:
+
+```powershell
+Get-FileHash .ib-expres-gui.exe -Algorithm SHA256
 ```
 
 El resultado queda en `dist/bib-expres-gui.exe` (~15 MB) — un único fichero, sin dependencias externas salvo el WebView2 que Windows 10/11 ya trae de fábrica. Como no está firmado, Windows puede mostrar un aviso de SmartScreen la primera vez ("Más información" > "Ejecutar de todas formas"), y el antivirus puede bloquearlo brevemente justo al terminar de construirlo (pasa de verdad, no es solo teórico).
