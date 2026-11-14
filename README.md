@@ -117,11 +117,12 @@ Open questions:
 
 ## Version history
 
-### v2.3.0: progress bar, Excel export and a bilingual README
+### v2.3.0: progress bar, Excel export, a bilingual README and no more silent hangs
 
 - **Live progress while searching**: a progress bar with articles found over the cap, the generation and the paper being explored, plus "last activity X s ago" so you can tell a slow search from a stuck one (after 30 s it says the APIs are slow but the search is still running). A **Cancel** button stops the search and keeps what was found so far. The CLI shows the same as a single line on `stderr`; `--quiet` hides it.
 - **Excel export for literature reviews** (`--format xlsx`, or "Excel" in the app): title, authors, DOI as a link, topic, keywords, relevance score, and an empty "Other notes" column. Frozen header and filters, so sorting by author or by relevance is one click. Any text starting with `=` is stored as plain text, never as a formula.
 - **README in English** with a Spanish version (`README.es.md`), reorganised: what it does, the benchmark, download and use first, version history last.
+- **Fixed: the app could hang for hours in silence** when OpenAlex rate-limits requests (too many in a short time, or the daily quota used up). OpenAlex then asks to wait, sometimes around 10 hours, and bib_exprés used to obey without limit. Now short waits (up to 30 s) are retried as before, and longer ones stop the search right away with a clear message saying how long to wait. Everything already fetched stays in the local cache, so retrying later costs fewer requests. Affected every earlier version.
 - New dependency: `openpyxl`. The `.exe` grows from ~16.4 MB to ~17 MB.
 
 ### v2.2.0: security patch, outdated libraries inside the `.exe`
