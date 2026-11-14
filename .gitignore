@@ -21,3 +21,5 @@ CLAUDE.md
 .histos/
 .histos.lock
 project.canvas.bak
+evals/
+histos.config.yaml
