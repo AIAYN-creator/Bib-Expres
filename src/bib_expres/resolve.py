@@ -99,6 +99,10 @@ def extract_from_pdf(path: str) -> tuple[str | None, str | None]:
         text = "".join(page.extract_text() or "" for page in reader.pages[:2])
     except (PdfReadError, OSError):
         return None, None
+    except Exception:  # noqa: BLE001 -- el PDF es un fichero ajeno: pypdf puede lanzar
+        # ValueError/KeyError/RecursionError... con PDFs malformados. Mejor "no se pudo
+        # leer" que una excepcion sin capturar que deja la GUI esperando sin mensaje.
+        return None, None
 
     doi = _find_doi_in_text(text)
     if doi:

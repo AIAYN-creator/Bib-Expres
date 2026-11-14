@@ -1,3 +1,4 @@
+import json
 import threading
 from urllib.parse import quote, unquote, urlsplit
 
@@ -16,15 +17,22 @@ from bib_expres.sources.semantic_scholar import SemanticScholarClient
 
 class _FakeResponse:
     def __init__(self, content: bytes, headers: dict | None = None, json_data: dict | None = None):
+        if json_data is not None:
+            content = json.dumps(json_data).encode()
         self.content = content
         self.headers = headers or {}
-        self._json_data = json_data if json_data is not None else {}
+        self.chunks_read = 0
 
     def raise_for_status(self):
         pass
 
-    def json(self):
-        return self._json_data
+    def iter_content(self, chunk_size=1):
+        for i in range(0, len(self.content), chunk_size):
+            self.chunks_read += 1
+            yield self.content[i : i + chunk_size]
+
+    def close(self):
+        pass
 
 
 def test_parse_openalex_work():
@@ -157,6 +165,31 @@ def test_source_client_rejects_oversized_response_by_actual_size(tmp_path, monke
         client.get("/works")
 
 
+def test_source_client_stops_reading_chunked_response_past_limit(tmp_path, monkeypatch):
+    """Sin Content-Length (respuesta chunked), el limite se aplica mientras se
+    lee, no despues de haber descargado todo a memoria."""
+    client = SourceClient(
+        base_url="https://example.com", cache=ResponseCache(path=tmp_path / "c.sqlite3")
+    )
+    fake = _FakeResponse(content=b"x" * (MAX_RESPONSE_BYTES * 3))
+    monkeypatch.setattr(client._session, "get", lambda *a, **k: fake)
+
+    with pytest.raises(requests.RequestException):
+        client.get("/works")
+    total_chunks = (MAX_RESPONSE_BYTES * 3) // (64 * 1024)
+    assert fake.chunks_read < total_chunks / 2
+
+
+def test_source_client_invalid_json_is_request_exception(tmp_path, monkeypatch):
+    client = SourceClient(
+        base_url="https://example.com", cache=ResponseCache(path=tmp_path / "c.sqlite3")
+    )
+    monkeypatch.setattr(client._session, "get", lambda *a, **k: _FakeResponse(content=b"<html>"))
+
+    with pytest.raises(requests.RequestException):
+        client.get("/works")
+
+
 def test_semantic_scholar_get_similar_without_doi_returns_empty():
     client = SemanticScholarClient()
     paper = Paper(
@@ -190,7 +223,7 @@ def test_openalex_resolve_doi_url_encodes_doi_path_characters(tmp_path, monkeypa
     client = OpenAlexClient(cache=ResponseCache(path=tmp_path / "c.sqlite3"))
     captured: dict[str, str] = {}
 
-    def fake_get(url, params=None, timeout=None):
+    def fake_get(url, params=None, timeout=None, stream=False):
         captured["url"] = url
         return _FakeResponse(
             content=b"{}",
@@ -222,7 +255,7 @@ def test_openalex_get_references_url_encodes_openalex_id_path_characters(
     client = OpenAlexClient(cache=ResponseCache(path=tmp_path / "c.sqlite3"))
     captured: dict[str, str] = {}
 
-    def fake_get(url, params=None, timeout=None):
+    def fake_get(url, params=None, timeout=None, stream=False):
         captured["url"] = url
         return _FakeResponse(content=b"{}", json_data={"referenced_works": []})
 
@@ -253,7 +286,7 @@ def test_crossref_resolve_doi_url_encodes_doi_path_characters(tmp_path, monkeypa
     client = CrossrefClient(cache=ResponseCache(path=tmp_path / "c.sqlite3"))
     captured: dict[str, str] = {}
 
-    def fake_get(url, params=None, timeout=None):
+    def fake_get(url, params=None, timeout=None, stream=False):
         captured["url"] = url
         return _FakeResponse(content=b"{}")
 
@@ -272,7 +305,7 @@ def test_semantic_scholar_get_similar_url_encodes_paper_doi(tmp_path, monkeypatc
     client = SemanticScholarClient(cache=ResponseCache(path=tmp_path / "c.sqlite3"))
     captured: dict[str, str] = {}
 
-    def fake_get(url, params=None, timeout=None):
+    def fake_get(url, params=None, timeout=None, stream=False):
         captured["url"] = url
         return _FakeResponse(content=b"{}", json_data={"recommendedPapers": []})
 
@@ -310,7 +343,7 @@ def test_semantic_scholar_get_similar_encodes_untrusted_candidate_doi_from_api(
     captured_urls: list[str] = []
 
     def make_fake_get(json_data):
-        def fake_get(url, params=None, timeout=None):
+        def fake_get(url, params=None, timeout=None, stream=False):
             captured_urls.append(url)
             return _FakeResponse(content=b"{}", json_data=json_data)
 

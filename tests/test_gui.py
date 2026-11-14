@@ -1,3 +1,5 @@
+import pytest
+
 from bib_expres.gui.app import Api, _config_from_params, _paper_to_dict, save_env_settings
 from bib_expres.models import DiscoveryMode, Paper
 
@@ -275,3 +277,23 @@ def test_config_from_params_defaults():
 def test_config_from_params_doc_type_filter():
     config = _config_from_params({"allowed_doc_types": ["article", "preprint"]})
     assert config.allowed_doc_types == {"article", "preprint"}
+
+
+def test_save_env_settings_strips_trailing_newline(tmp_path):
+    env = tmp_path / ".env"
+    save_env_settings({"SEMANTIC_SCHOLAR_API_KEY": "abc123\n"}, env_path=env)
+    assert env.read_text(encoding="utf-8") == "SEMANTIC_SCHOLAR_API_KEY=abc123\n"
+
+
+def test_save_env_settings_rejects_injected_lines(tmp_path):
+    env = tmp_path / ".env"
+    with pytest.raises(ValueError):
+        save_env_settings({"CONTACT_EMAIL": "a@b.c\nOTHER_KEY=evil"}, env_path=env)
+    assert not env.exists()
+
+
+def test_api_save_settings_reports_injected_lines_as_error(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    res = Api().save_settings({"CONTACT_EMAIL": "a@b.c\nOTHER_KEY=evil"})
+    assert res["status"] == "error"
+    assert not (tmp_path / ".env").exists()

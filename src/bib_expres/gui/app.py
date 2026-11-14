@@ -58,9 +58,20 @@ def _config_from_params(params: dict) -> SearchConfig:
     )
 
 
+def _clean_env_value(value: object) -> str:
+    """Quita espacios/saltos de linea de los extremos (una API key pegada con un
+    salto de linea al final es lo normal) y rechaza saltos de linea internos, que
+    meterian lineas extra en el .env."""
+    cleaned = str(value).strip()
+    if "\n" in cleaned or "\r" in cleaned:
+        raise ValueError("los ajustes no pueden contener saltos de linea")
+    return cleaned
+
+
 def save_env_settings(settings: dict, env_path: Path | None = None) -> None:
     """Lee el .env existente (si lo hay), actualiza solo las claves conocidas y
     reescribe -- no toca ninguna otra linea/clave que ya hubiera."""
+    settings = {k: _clean_env_value(v) for k, v in settings.items() if k in _ENV_KEYS}
     path = env_path or Path(".env")
     existing_lines = path.read_text(encoding="utf-8").splitlines() if path.exists() else []
 
@@ -194,10 +205,13 @@ class Api:
         }
 
     def save_settings(self, settings: dict) -> dict:
-        save_env_settings(settings)
+        try:
+            save_env_settings(settings)
+        except ValueError as exc:
+            return {"status": "error", "message": str(exc)}
         for key in _ENV_KEYS:
             if settings.get(key):
-                os.environ[key] = settings[key]
+                os.environ[key] = _clean_env_value(settings[key])
         return {"status": "ok"}
 
 

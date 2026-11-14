@@ -241,3 +241,14 @@ def test_extract_from_pdf_falls_back_to_title_guess(monkeypatch):
 def test_extract_from_pdf_missing_file_returns_none_none(tmp_path):
     missing = tmp_path / "does-not-exist.pdf"
     assert extract_from_pdf(str(missing)) == (None, None)
+
+
+def test_extract_from_pdf_unexpected_pypdf_error_returns_none_none(monkeypatch):
+    """PDFs malformados pueden hacer que pypdf lance excepciones fuera de
+    PdfReadError -- no deben escapar hasta la GUI."""
+
+    def boom(path):
+        raise RecursionError("malformed page tree")
+
+    monkeypatch.setattr("bib_expres.resolve.PdfReader", boom)
+    assert extract_from_pdf("whatever.pdf") == (None, None)

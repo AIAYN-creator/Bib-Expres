@@ -72,6 +72,29 @@ class ResponseCache:
         self._conn.commit()
 
 
+def _read_limited(response: requests.Response, url: str) -> bytes:
+    """Lee el cuerpo por trozos y corta en cuanto pasa de MAX_RESPONSE_BYTES.
+    Leer `response.content` de golpe descargaria la respuesta entera a memoria
+    antes de poder comprobar su tamano -- con respuestas sin Content-Length
+    (chunked) el limite llegaria tarde."""
+    content_length = response.headers.get("Content-Length")
+    if content_length and content_length.isdigit() and int(content_length) > MAX_RESPONSE_BYTES:
+        raise requests.RequestException(
+            f"Respuesta de {url} demasiado grande segun Content-Length "
+            f"({content_length} bytes) -- rechazada como precaucion"
+        )
+    chunks: list[bytes] = []
+    total = 0
+    for chunk in response.iter_content(chunk_size=64 * 1024):
+        total += len(chunk)
+        if total > MAX_RESPONSE_BYTES:
+            raise requests.RequestException(
+                f"Respuesta de {url} demasiado grande (>{MAX_RESPONSE_BYTES} bytes) -- rechazada como precaucion"
+            )
+        chunks.append(chunk)
+    return b"".join(chunks)
+
+
 class SourceClient:
     """Sesion HTTP compartida para todos los clientes de fuentes: reintentos con
     backoff, cache local, e identificacion de contacto (mailto o API key) inyectada
@@ -115,21 +138,17 @@ class SourceClient:
             if cached is not None:
                 return cached
 
-        response = self._session.get(url, params=params, timeout=self.timeout)
-        response.raise_for_status()
+        response = self._session.get(url, params=params, timeout=self.timeout, stream=True)
+        try:
+            response.raise_for_status()
+            body = _read_limited(response, url)
+        finally:
+            response.close()
 
-        content_length = response.headers.get("Content-Length")
-        if content_length and int(content_length) > MAX_RESPONSE_BYTES:
-            raise requests.RequestException(
-                f"Respuesta de {url} demasiado grande segun Content-Length "
-                f"({content_length} bytes) -- rechazada como precaucion"
-            )
-        if len(response.content) > MAX_RESPONSE_BYTES:
-            raise requests.RequestException(
-                f"Respuesta de {url} demasiado grande (>{MAX_RESPONSE_BYTES} bytes) -- rechazada como precaucion"
-            )
-
-        data = response.json()
+        try:
+            data = json.loads(body)
+        except ValueError as exc:
+            raise requests.RequestException(f"Respuesta de {url} no es JSON valido") from exc
 
         if use_cache:
             self.cache.set(url, params, data)
