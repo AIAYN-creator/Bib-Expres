@@ -31,7 +31,7 @@ paper de entrada
 
 ## Rendimiento
 
-**200 artículos en ~22 segundos**, partiendo de *Attention Is All You Need* con los parámetros por defecto (2 generaciones, referencias + citas). Es una ejecución real, no una estimación: [ver el ejemplo completo](docs/ejemplo.md).
+**200 artículos en ~22 segundos**, partiendo de *Attention Is All You Need* con los parámetros por defecto (2 generaciones, referencias + citas). Es una ejecución real, no una estimación: [ver el ejemplo completo](docs/ejemplo.md). El tiempo depende sobre todo de lo rápido que responda OpenAlex ese día: la misma búsqueda, repetida en noviembre de 2026 con la caché vacía, tardó entre 27 y 39 s.
 
 ## Descarga y uso
 
@@ -114,6 +114,13 @@ Preguntas abiertas:
 - Si la parte de librería/CLI se distribuye por PyPI o solo desde GitHub.
 
 ## Historial de versiones
+
+### v2.3.0: barra de progreso, exportación a Excel y README bilingüe
+
+- **Progreso en directo durante la búsqueda**: barra con artículos encontrados sobre el tope, generación y artículo que se está explorando, y "última actividad hace X s" para distinguir una búsqueda lenta de una colgada (a partir de 30 s avisa de que las APIs están tardando, pero la búsqueda sigue). Un botón **Cancelar** para la búsqueda y se queda con lo encontrado hasta ese momento. La CLI muestra lo mismo en una línea en `stderr`; `--quiet` la oculta.
+- **Exportación a Excel para revisiones bibliográficas** (`--format xlsx`, o "Excel" en la app): título, autores, DOI como enlace, tema, palabras clave, relevancia y una columna "Otras notas" vacía. Cabecera fija y filtros, así que ordenar por autor o por relevancia es un clic. Un texto que empiece por `=` se guarda como texto, nunca como fórmula.
+- **README en inglés** con versión en español (`README.es.md`), reordenado: qué hace, el benchmark, descarga y uso primero, e historial de versiones al final.
+- Dependencia nueva: `openpyxl`. El `.exe` pasa de ~16,4 MB a ~17 MB.
 
 ### v2.2.0: parche de seguridad, librerías desactualizadas dentro del `.exe`
 
