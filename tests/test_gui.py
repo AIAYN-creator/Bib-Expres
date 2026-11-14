@@ -327,8 +327,9 @@ def test_api_get_progress_finished_after_search():
 
     progress = api.get_progress()
     assert progress["status"] == "finished"
-    assert progress["found"] == res["count"] == 3
-    assert progress["max_articles"] == 50
+    assert res["count"] == 3
+    assert progress["planned"] == 1  # 1 generacion: solo se expande el padre (el fake no fija generation)
+    assert progress["candidates"] == 2
     assert progress["idle_seconds"] >= 0
 
 

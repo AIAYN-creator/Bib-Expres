@@ -83,7 +83,7 @@
       </div>
       <div class="field">
         <label for="param-threshold">Umbral de relevancia (0-1)</label>
-        <input id="param-threshold" type="number" min="0" max="1" step="0.05" value="0.3">
+        <input id="param-threshold" type="number" min="0" max="1" step="0.05" value="0.15">
       </div>
       <div class="field">
         <label for="param-weight-topic">Peso: tema</label>
@@ -96,6 +96,14 @@
       <div class="field">
         <label for="param-weight-recency">Peso: recencia</label>
         <input id="param-weight-recency" type="number" step="0.1" value="0.1">
+      </div>
+      <div class="field">
+        <label for="param-weight-coupling">Peso: conexiones (en cuántos papers de la búsqueda aparece)</label>
+        <input id="param-weight-coupling" type="number" step="0.1" value="1">
+      </div>
+      <div class="field">
+        <label for="param-weight-keywords">Peso: palabras clave en común con el paper de partida</label>
+        <input id="param-weight-keywords" type="number" step="0.1" value="0.5">
       </div>
     </details>
 

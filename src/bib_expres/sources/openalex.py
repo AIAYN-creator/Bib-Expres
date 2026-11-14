@@ -83,6 +83,11 @@ def _parse_work(
         abstract=_reconstruct_abstract(raw.get("abstract_inverted_index")),
         topic=(raw.get("primary_topic") or {}).get("display_name"),
         language=raw.get("language"),
+        topics=[
+            Concept(name=t["display_name"], score=t.get("score", 0.0))
+            for t in raw.get("topics") or []
+            if t.get("display_name")
+        ],
         publisher_lineage=_publisher_lineage(source),
         oa_url=(raw.get("open_access") or {}).get("oa_url"),
         oa_status=(raw.get("open_access") or {}).get("oa_status"),
@@ -113,7 +118,14 @@ class OpenAlexClient:
     def get_citations(self, paper: Paper, generation: int, limit: int = 50) -> list[Paper]:
         raw = self._client.get(
             "/works",
-            params={"filter": f"cites:{paper.openalex_id}", "per_page": min(limit, 200)},
+            # Las mas citadas primero. Es el orden por defecto de OpenAlex hoy, pero
+            # se pide explicito para que el comportamiento no dependa de un valor
+            # implicito (ver diseno-algoritmo-v3).
+            params={
+                "filter": f"cites:{paper.openalex_id}",
+                "sort": "cited_by_count:desc",
+                "per_page": min(limit, 200),
+            },
         )
         return [
             _parse_work(w, generation=generation, discovered_via=DiscoveryMode.CITATION)

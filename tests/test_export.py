@@ -138,7 +138,7 @@ def test_write_xlsx_columns_and_values(tmp_path):
     headers = [c.value for c in ws[1]]
     assert headers == [
         "Título", "Autores", "DOI", "Tema", "Palabras clave", "Relevancia",
-        "Acceso", "Enlace de acceso", "Otras notas",
+        "Por qué", "Acceso", "Enlace de acceso", "Otras notas",
     ]
     row = [c.value for c in ws[2]]
     assert row[0] == "Attention Is All You Need"
@@ -147,10 +147,10 @@ def test_write_xlsx_columns_and_values(tmp_path):
     assert row[3] == "Natural Language Processing Techniques"
     assert row[4] == "transformer; self-attention"
     assert row[5] == pytest.approx(0.823)
-    assert row[8] is None  # Otras notas, vacia
+    assert row[9] is None  # Otras notas, vacia
     assert ws["C2"].hyperlink.target == "https://doi.org/10.48550/arxiv.1706.03762"
     assert ws.freeze_panes == "A2"
-    assert ws.auto_filter.ref == "A1:I2"
+    assert ws.auto_filter.ref == "A1:J2"
 
 
 def test_write_xlsx_without_doi_links_to_openalex(tmp_path):
@@ -194,12 +194,25 @@ def test_write_xlsx_access_columns(tmp_path):
     paper = _paper(access_status="open", access_url="https://repo.edu/a.pdf")
     write([paper], str(out), format="xlsx")
     ws = _read_xlsx(out)
-    assert ws["G2"].value == "abierto"
-    assert ws["H2"].hyperlink.target == "https://repo.edu/a.pdf"
+    assert ws["H2"].value == "abierto"
+    assert ws["I2"].hyperlink.target == "https://repo.edu/a.pdf"
 
 
 def test_write_xlsx_ignores_unsafe_access_url(tmp_path):
     out = tmp_path / "rev.xlsx"
     write([_paper(access_status="open", access_url="javascript:alert(1)")], str(out), format="xlsx")
     ws = _read_xlsx(out)
-    assert ws["H2"].hyperlink is None
+    assert ws["I2"].hyperlink is None
+
+
+def test_write_xlsx_por_que_column(tmp_path):
+    out = tmp_path / "rev.xlsx"
+    breakdown = {
+        "tema": 0.6, "citas": 0.4, "recencia": 0.2, "relevancia": 0.5,
+        "conexiones": 4, "conexiones_score": 0.6, "palabras_clave": ["attention"],
+        "palabras_clave_score": 0.2, "final": 0.48,
+    }
+    write([_paper(score_breakdown=breakdown, relevance_score=0.48)], str(out), format="xlsx")
+    ws = _read_xlsx(out)
+    assert ws["G2"].value.startswith("0.48 = relevancia 0.50")
+    assert "conectado con 4 papers" in ws["G2"].value

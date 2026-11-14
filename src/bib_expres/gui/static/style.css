@@ -219,3 +219,4 @@ button.small { padding: 0.2rem 0.6rem; font-size: 0.78rem; }
 #institution-panel { margin-bottom: 0.75rem; }
 #institution-panel .checkbox { display: block; margin: 0.2rem 0; }
 #institution-panel .hint { margin-top: 0.5rem; }
+.paper-row .why { color: var(--muted); font-size: 0.76rem; margin-top: 0.15rem; }

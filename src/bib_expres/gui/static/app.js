@@ -28,11 +28,11 @@
   function renderProgress(p) {
     if (!p || p.status === "idle") return;
     const pct =
-      p.status === "finished" ? 100 : Math.min(100, Math.round((p.found / p.max_articles) * 100));
+      p.status === "finished" ? 100 : Math.min(100, Math.round((p.explored / Math.max(p.planned, 1)) * 100));
     document.getElementById("progress-fill").style.width = `${pct}%`;
     document.querySelector(".progress-track").setAttribute("aria-valuenow", String(pct));
     document.getElementById("progress-stats").textContent =
-      `${p.found} / ${p.max_articles} artículos · generación ${p.generation || 1}`;
+      `Explorados ${p.explored} de ${p.planned} · ${p.candidates} candidatos · generación ${p.generation || 1}`;
     document.getElementById("progress-current").textContent = p.current_title
       ? `Explorando: ${p.current_title}`
       : "";
@@ -228,6 +228,8 @@
       weight_topic: document.getElementById("param-weight-topic").value,
       weight_citations: document.getElementById("param-weight-citations").value,
       weight_recency: document.getElementById("param-weight-recency").value,
+      weight_coupling: document.getElementById("param-weight-coupling").value,
+      weight_keywords: document.getElementById("param-weight-keywords").value,
       allowed_doc_types: allowedDocTypes,
       require_open_access: document.getElementById("param-open-access").checked,
       language_mode: document.getElementById("param-language-mode").value,
@@ -307,6 +309,12 @@
         `<div class="paper-side"><span class="access-badge"></span></div>`;
       row.querySelector(".title").textContent = paper.title;
       row.querySelector(".meta").textContent = paperMeta(paper);
+      if (paper.explanation) {
+        const why = document.createElement("div");
+        why.className = "why";
+        why.textContent = paper.explanation;
+        row.querySelector(".paper-main").appendChild(why);
+      }
       const badge = row.querySelector(".access-badge");
       badge.textContent = paper.access_label || "no comprobado";
       badge.classList.add(paper.access_status || "unknown");
@@ -414,8 +422,9 @@
     const paper = curationPapers[curationIndex];
     const card = document.getElementById("curation-card");
     card.style.transform = "";
-    card.querySelector(".curation-score").textContent =
-      paper.relevance_score != null
+    card.querySelector(".curation-score").textContent = paper.explanation
+      ? `Relevancia ${paper.explanation}`
+      : paper.relevance_score != null
         ? `Relevancia: ${paper.relevance_score.toFixed(2)}`
         : "Relevancia: --";
     card.querySelector(".title").textContent = paper.title;

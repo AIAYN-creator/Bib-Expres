@@ -21,7 +21,8 @@ from ..access import (
     validate_library_template,
 )
 from ..config import ExpansionMode, InstallConfig, RelevanceWeights, SearchConfig
-from ..expansion import ProgressEvent, expand
+from ..expansion import ProgressEvent, expand, planned_expansions
+from ..relevance import explain
 from ..export import write
 from ..models import Paper
 from ..resolve import (
@@ -60,6 +61,7 @@ def _paper_to_dict(paper: Paper) -> dict:
         "access_status": paper.access_status,
         "access_label": ACCESS_LABELS.get(paper.access_status or "", None),
         "access_url": paper.access_url if is_openable_url(paper.access_url) else None,
+        "explanation": explain(paper.score_breakdown),
     }
 
 
@@ -83,8 +85,11 @@ def _config_from_params(params: dict) -> SearchConfig:
             topic=float(params.get("weight_topic", 1.0)),
             citations=float(params.get("weight_citations", 0.2)),
             recency=float(params.get("weight_recency", 0.1)),
+            coupling=float(params.get("weight_coupling", 1.0)),
+            keywords=float(params.get("weight_keywords", 0.5)),
         ),
-        relevance_threshold=float(params.get("relevance_threshold", 0.3)),
+        explore_budget=int(params.get("explore_budget", 30)),
+        relevance_threshold=float(params.get("relevance_threshold", 0.15)),
         allowed_doc_types=allowed_doc_types,
         require_open_access=bool(params.get("require_open_access", False)),
         languages=languages,
@@ -208,7 +213,8 @@ class Api:
         self._cancel_requested.clear()
         with self._progress_lock:
             self._progress = ProgressEvent(
-                found=1, max_articles=config.max_articles, generation=0, current_title=None
+                explored=0, planned=planned_expansions(config), candidates=0,
+                generation=0, current_title=None,
             )
             self._last_activity = time.monotonic()
         self._results = expand(
@@ -290,8 +296,9 @@ class Api:
             return {"status": "idle"}
         return {
             "status": "finished" if event.finished else "running",
-            "found": event.found,
-            "max_articles": event.max_articles,
+            "explored": event.explored,
+            "planned": event.planned,
+            "candidates": event.candidates,
             "generation": event.generation,
             "current_title": event.current_title,
             "cancelled": event.cancelled,

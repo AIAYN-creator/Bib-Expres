@@ -137,15 +137,19 @@ def test_quiet_flag_defaults_off():
 
 
 def test_print_progress_writes_single_line_to_stderr(capsys):
-    _print_progress(ProgressEvent(found=12, max_articles=200, generation=2, current_title="Some Paper"))
+    _print_progress(
+        ProgressEvent(explored=5, planned=21, candidates=480, generation=2, current_title="Some Paper")
+    )
     out, err = capsys.readouterr()
     assert out == ""
-    assert err.startswith("\r12/200 articulos -- generacion 2 -- Some Paper")
+    assert err.startswith("\rexplorados 5/21 -- 480 candidatos -- generacion 2 -- Some Paper")
     assert "\n" not in err
 
 
 def test_print_progress_clears_line_when_finished(capsys):
-    _print_progress(ProgressEvent(found=12, max_articles=200, generation=0, current_title=None, finished=True))
+    _print_progress(
+        ProgressEvent(explored=21, planned=21, candidates=900, generation=0, current_title=None, finished=True)
+    )
     _, err = capsys.readouterr()
     assert err.strip() == ""
 

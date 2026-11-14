@@ -43,3 +43,7 @@ class Paper:
     # Calculados por access.annotate_access(), no vienen de la API:
     access_status: str | None = None
     access_url: str | None = None
+    # Temas de OpenAlex con su peso (sustituto de `concepts`, que OpenAlex marco obsoleto)
+    topics: list[Concept] = field(default_factory=list)
+    # Desglose del score final (v3), calculado por expand(): ver relevance.explain()
+    score_breakdown: dict | None = None

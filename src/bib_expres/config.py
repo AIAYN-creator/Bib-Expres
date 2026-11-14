@@ -13,9 +13,14 @@ class ExpansionMode(str, Enum):
 
 @dataclass
 class RelevanceWeights:
+    # Relevancia tematica (formula de v1/v2): parecido al paper de partida.
     topic: float = 1.0
     citations: float = 0.2
     recency: float = 0.1
+    # Senales de v3 (ver diseno-algoritmo-v3), combinadas con la relevancia
+    # tematica en el score final.
+    coupling: float = 1.0  # conexiones con los papers explorados
+    keywords: float = 0.5  # palabras clave en comun con el paper de partida
 
 
 @dataclass
@@ -23,11 +28,15 @@ class SearchConfig:
     generations: int = 2
     max_articles: int = 200
     max_fanout_per_node: int = 20
+    # Cuantos papers se expanden (se les piden referencias/citas) como maximo.
+    # Con 2 generaciones y fanout 20 se expanden 21 (el padre + 20); el tope
+    # evita que 3+ generaciones disparen el tiempo (cada paper son 1-3 s de red).
+    explore_budget: int = 30
     modes: set[ExpansionMode] = field(
         default_factory=lambda: {ExpansionMode.REFERENCES, ExpansionMode.CITATIONS}
     )
     relevance_weights: RelevanceWeights = field(default_factory=RelevanceWeights)
-    relevance_threshold: float = 0.3
+    relevance_threshold: float = 0.15  # sobre el score final (v3); recalibrado con el banco de pruebas
     allowed_doc_types: set[str] | None = None  # None = sin filtro, cualquier tipo entra
     require_open_access: bool = False
     # Filtro por idioma, al estilo Google Scholar. Por defecto, cualquier idioma.
@@ -40,6 +49,8 @@ class SearchConfig:
     def __post_init__(self) -> None:
         if not 1 <= self.generations <= 5:
             raise ValueError("generations debe estar entre 1 y 5")
+        if self.explore_budget < 1:
+            raise ValueError("explore_budget debe ser al menos 1")
         if self.languages is not None:
             self.languages = {code.strip().lower() for code in self.languages if code.strip()}
             if not self.languages:

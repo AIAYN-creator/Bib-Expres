@@ -11,6 +11,7 @@ from .config import ExpansionMode, InstallConfig, RelevanceWeights, SearchConfig
 from .expansion import ProgressEvent, expand
 from .export import infer_format, write
 from .models import Paper
+from .relevance import explain
 from .resolve import (
     DOIResolutionError,
     TitleSearchRequired,
@@ -87,7 +88,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--relevance-threshold",
         type=float,
-        default=0.3,
+        default=0.15,
         help="Umbral minimo de relevancia, 0-1",
     )
     parser.add_argument(
@@ -119,6 +120,29 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Idioma de los articulos: any (cualquiera, por defecto), same (el del "
         "paper padre) o codigos ISO separados por coma (p.ej. es,en). Los articulos "
         "sin idioma conocido no se descartan.",
+    )
+    parser.add_argument(
+        "--weight-coupling",
+        type=float,
+        default=1.0,
+        help="Peso de las conexiones (en cuantos papers de la busqueda aparece) en el score final",
+    )
+    parser.add_argument(
+        "--weight-keywords",
+        type=float,
+        default=0.5,
+        help="Peso de las palabras clave en comun con el paper padre en el score final",
+    )
+    parser.add_argument(
+        "--explore-budget",
+        type=int,
+        default=30,
+        help="Maximo de papers a expandir (pedir sus referencias/citas); acota el tiempo",
+    )
+    parser.add_argument(
+        "--explain",
+        action="store_true",
+        help="Mostrar en stderr el desglose del score de los 20 primeros resultados",
     )
     parser.add_argument(
         "--library-link",
@@ -163,7 +187,7 @@ def _print_progress(event: ProgressEvent) -> None:
     else:
         title = (event.current_title or "")[:45]
         line = (
-            f"{event.found}/{event.max_articles} articulos"
+            f"explorados {event.explored}/{event.planned} -- {event.candidates} candidatos"
             f" -- generacion {event.generation} -- {title}"
         )
     sys.stderr.write("\r" + line[:_PROGRESS_WIDTH].ljust(_PROGRESS_WIDTH) + ("\r" if not line else ""))
@@ -209,7 +233,10 @@ def main(argv: list[str] | None = None) -> int:
                 topic=args.weight_topic,
                 citations=args.weight_citations,
                 recency=args.weight_recency,
+                coupling=args.weight_coupling,
+                keywords=args.weight_keywords,
             ),
+            explore_budget=args.explore_budget,
             relevance_threshold=args.relevance_threshold,
             allowed_doc_types=args.doc_types,
             require_open_access=args.open_access_only,
@@ -265,6 +292,10 @@ def main(argv: list[str] | None = None) -> int:
         semantic_scholar_client=semantic_scholar,
         on_progress=None if args.quiet else _print_progress,
     )
+
+    if args.explain:
+        for paper in results[1:21]:
+            print(f"- {paper.title[:70]}\n    {explain(paper.score_breakdown)}", file=sys.stderr)
 
     annotate_access(results, access_config)
     if args.accessible_only:
