@@ -17,6 +17,7 @@ from .resolve import (
     resolve_root_paper,
     search_by_title,
 )
+from .sources.base import RateLimitedError
 from .sources.crossref import CrossrefClient
 from .sources.openalex import OpenAlexClient
 from .sources.semantic_scholar import SemanticScholarClient
@@ -142,6 +143,14 @@ def _confirm_title_candidate(query: str, openalex_client: OpenAlexClient) -> Pap
 
 
 def main(argv: list[str] | None = None) -> int:
+    try:
+        return _run(argv)
+    except RateLimitedError as exc:
+        print(f"\nError: {exc}", file=sys.stderr)
+        return 1
+
+
+def _run(argv: list[str] | None = None) -> int:
     load_dotenv()
 
     parser = _build_parser()

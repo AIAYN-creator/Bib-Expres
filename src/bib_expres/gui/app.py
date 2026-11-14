@@ -18,6 +18,7 @@ from ..resolve import (
     resolve_input,
     search_by_title,
 )
+from ..sources.base import RateLimitedError
 from ..sources.crossref import CrossrefClient
 from ..sources.openalex import OpenAlexClient
 from ..sources.semantic_scholar import SemanticScholarClient
@@ -140,7 +141,7 @@ class Api:
                 "query": exc.query,
                 "candidates": [_paper_to_dict(p) for p in self._candidates],
             }
-        except DOIResolutionError as exc:
+        except (DOIResolutionError, RateLimitedError) as exc:
             return {"status": "error", "message": str(exc)}
 
     def confirm_candidate(self, index: int) -> dict:
@@ -177,14 +178,23 @@ class Api:
                 found=1, max_articles=config.max_articles, generation=0, current_title=None
             )
             self._last_activity = time.monotonic()
-        self._results = expand(
-            self._root,
-            config,
-            openalex_client=self._openalex,
-            semantic_scholar_client=semantic_scholar,
-            on_progress=self._record_progress,
-            should_cancel=self._cancel_requested.is_set,
-        )
+        try:
+            self._results = expand(
+                self._root,
+                config,
+                openalex_client=self._openalex,
+                semantic_scholar_client=semantic_scholar,
+                on_progress=self._record_progress,
+                should_cancel=self._cancel_requested.is_set,
+            )
+        except RateLimitedError as exc:
+            self._record_progress(
+                ProgressEvent(
+                    found=0, max_articles=config.max_articles, generation=0,
+                    current_title=None, finished=True,
+                )
+            )
+            return {"status": "error", "message": str(exc)}
         return {
             "status": "ok",
             "count": len(self._results),

@@ -148,3 +148,15 @@ def test_print_progress_clears_line_when_finished(capsys):
     _print_progress(ProgressEvent(found=12, max_articles=200, generation=0, current_title=None, finished=True))
     _, err = capsys.readouterr()
     assert err.strip() == ""
+
+
+def test_cli_reports_rate_limit_and_exits_1(monkeypatch, capsys):
+    from bib_expres import cli
+    from bib_expres.sources.base import RateLimitedError
+
+    def limited(*a, **k):
+        raise RateLimitedError("api.openalex.org", 37171)
+
+    monkeypatch.setattr(cli, "resolve_root_paper", limited)
+    assert cli.main(["--doi", "10.1/x"]) == 1
+    assert "limitado las peticiones" in capsys.readouterr().err

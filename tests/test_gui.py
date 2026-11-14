@@ -375,3 +375,20 @@ def test_api_new_search_clears_previous_cancel():
     api.cancel_search()
     res = api.search({"generations": "1", "max_articles": "5", "modes": ["references"]})
     assert res["cancelled"] is False
+
+
+def test_api_search_reports_rate_limit_as_error():
+    from bib_expres.sources.base import RateLimitedError
+
+    root = _paper()
+
+    class _LimitedOpenAlex(_FakeOpenAlex):
+        def get_references(self, paper, generation):
+            raise RateLimitedError("api.openalex.org", 37171)
+
+    api = Api(openalex_client=_LimitedOpenAlex(resolve_result=root), crossref_client=_FakeCrossref())
+    api.resolve("10.1/abc")
+    res = api.search({"generations": "1", "max_articles": "5", "modes": ["references"]})
+    assert res["status"] == "error"
+    assert "unas 10 horas" in res["message"]
+    assert api.get_progress()["status"] == "finished"
