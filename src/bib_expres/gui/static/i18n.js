@@ -296,6 +296,7 @@ window.I18N = {
     err_export_failed: "Couldn't save the file. Check the folder and that the file isn't open elsewhere.",
     err_nothing_to_export: "There are no results to export.",
     err_invalid_link: "That link can't be opened.",
+    err_path_not_chosen: "Choose where to save with the “Choose…” button.",
     waitHours: "about {n} hours", waitHour: "about an hour", waitMinutes: "about {n} minutes", waitSeconds: "{n} seconds", waitUnknown: "a while",
   },
 };

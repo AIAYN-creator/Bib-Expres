@@ -658,8 +658,9 @@
   function selectFormat(format) {
     exportFormat = format;
     document.querySelectorAll(".fmt").forEach((b) => b.classList.toggle("on", b.dataset.format === format));
-    const path = $("export-path").value;
-    if (path) $("export-path").value = path.replace(/\.[^.\\/]+$/, "") + "." + FORMAT_EXTENSIONS[format];
+    // Cambiar de formato invalida la ruta elegida (por seguridad, Python solo
+    // escribe en rutas elegidas en el dialogo): se vuelve a elegir.
+    $("export-path").value = "";
   }
   document.querySelectorAll(".fmt").forEach((b) => b.addEventListener("click", () => selectFormat(b.dataset.format)));
 

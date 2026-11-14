@@ -126,6 +126,12 @@ def _clean_env_value(value: object) -> str:
     return cleaned
 
 
+def _quote_env_value(value: str) -> str:
+    """Entre comillas dobles: sin ellas, python-dotenv corta el valor en un " #"
+    (lo toma por comentario) -- p.ej. una editorial "Wiley #2 Press"."""
+    return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+
 def save_env_settings(settings: dict, env_path: Path | None = None) -> None:
     """Lee el .env existente (si lo hay), actualiza solo las claves conocidas y
     reescribe -- no toca ninguna otra linea/clave que ya hubiera."""
@@ -145,21 +151,21 @@ def save_env_settings(settings: dict, env_path: Path | None = None) -> None:
         stripped = line.strip()
         key = stripped.split("=", 1)[0].strip() if "=" in stripped and not stripped.startswith("#") else None
         if key in _ENV_KEYS and key in settings:
-            new_lines.append(f"{key}={settings[key]}")
+            new_lines.append(f"{key}={_quote_env_value(settings[key])}")
             written.add(key)
         else:
             new_lines.append(line)
 
     for key in _ENV_KEYS:
         if key in settings and key not in written and settings[key]:
-            new_lines.append(f"{key}={settings[key]}")
+            new_lines.append(f"{key}={_quote_env_value(settings[key])}")
 
     path.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
 
 
 class Api:
-    """Puente js_api de pywebview -- cada metodo publico es llamable desde JS via
-    `pywebview.api.<metodo>(...)`. pywebview despacha cada llamada en su propio
+    """Puente js_api de pywebview -- cada metodo publico (sin _ delante) es
+    llamable desde JS via `pywebview.api.<metodo>(...)`: lo interno va con _. pywebview despacha cada llamada en su propio
     hilo (ver webview/util.py: `Thread(target=_call)`), asi que expand() puede
     tardar sin congelar la ventana -- no hace falta gestionar hilos a mano aqui.
     """
@@ -184,8 +190,11 @@ class Api:
         self._last_activity: float | None = None
         self._cancel_requested = threading.Event()
         self._last_export_path: Path | None = None
+        # Rutas elegidas por el usuario en el dialogo nativo de guardar: export()
+        # solo escribe en una de ellas, nunca en una ruta que llegue solo de JS.
+        self._chosen_save_paths: set[Path] = set()
 
-    def bind_window(self, window: webview.Window) -> None:
+    def _bind_window(self, window: webview.Window) -> None:
         self._window = window
 
     # -- Pantalla 1 / 1b: identificar el paper padre -------------------------
@@ -357,7 +366,11 @@ class Api:
         result = self._window.create_file_dialog(
             webview.FileDialog.SAVE, save_filename=default_name
         )
-        return result[0] if result else None
+        if not result:
+            return None
+        chosen = result if isinstance(result, str) else result[0]
+        self._chosen_save_paths.add(Path(chosen).resolve())
+        return chosen
 
     def export(
         self,
@@ -368,6 +381,8 @@ class Api:
     ) -> dict:
         if not self._results:
             return _error("nothing_to_export", "no hay resultados que exportar")
+        if Path(path).resolve() not in self._chosen_save_paths:
+            return _error("path_not_chosen", "elige dónde guardar con el botón «Elegir…»")
         excluded = set(excluded_indices or [])
         papers = [p for i, p in enumerate(self._results) if i not in excluded]
         try:
@@ -443,7 +458,7 @@ def main() -> None:
         height=720,
         min_size=(720, 560),
     )
-    api.bind_window(window)
+    api._bind_window(window)
     webview.start(_bind_pdf_drop, window)
 
 

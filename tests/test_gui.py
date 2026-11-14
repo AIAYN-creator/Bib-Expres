@@ -131,7 +131,7 @@ def test_api_pick_pdf_without_window_returns_none():
 def test_api_pick_pdf_uses_window_dialog():
     window = _FakeWindow(dialog_result=("C:/papers/a.pdf",))
     api = Api()
-    api.bind_window(window)
+    api._bind_window(window)
     assert api.pick_pdf() == "C:/papers/a.pdf"
     assert window.calls[0][1]["file_types"] == ("Archivos PDF (*.pdf)",)
 
@@ -139,7 +139,7 @@ def test_api_pick_pdf_uses_window_dialog():
 def test_api_pick_save_path_uses_window_dialog():
     window = _FakeWindow(dialog_result=("C:/out/bib.bib",))
     api = Api()
-    api.bind_window(window)
+    api._bind_window(window)
     assert api.pick_save_path("bib.bib") == "C:/out/bib.bib"
 
 
@@ -181,10 +181,17 @@ def test_api_export_without_results_errors(tmp_path):
     assert res["status"] == "error"
 
 
+def _choose(api, path):
+    """Simula que el usuario eligio `path` en el dialogo nativo de guardar."""
+    api._bind_window(_FakeWindow(dialog_result=(str(path),)))
+    assert api.pick_save_path() == str(path)
+    return str(path)
+
+
 def test_api_export_writes_file(tmp_path):
     api = Api()
     api._results = [_paper()]
-    path = str(tmp_path / "out.bib")
+    path = _choose(api, tmp_path / "out.bib")
     res = api.export(path, "bibtex")
     assert res["status"] == "ok"
     assert (tmp_path / "out.bib").exists()
@@ -193,7 +200,7 @@ def test_api_export_writes_file(tmp_path):
 def test_api_export_unknown_format_errors(tmp_path):
     api = Api()
     api._results = [_paper()]
-    res = api.export(str(tmp_path / "out.xyz"), "nope")
+    res = api.export(_choose(api, tmp_path / "out.xyz"), "nope")
     assert res["status"] == "error"
 
 
@@ -204,7 +211,7 @@ def test_api_export_excludes_indices(tmp_path):
         _paper(openalex_id="W2", title="Discard me"),
         _paper(openalex_id="W3", title="Keep me too"),
     ]
-    path = str(tmp_path / "out.bib")
+    path = _choose(api, tmp_path / "out.bib")
     res = api.export(path, "bibtex", excluded_indices=[1])
     assert res["status"] == "ok"
     assert res["count"] == 2
@@ -217,7 +224,7 @@ def test_api_export_excludes_indices(tmp_path):
 def test_api_export_without_excluded_indices_keeps_everyone(tmp_path):
     api = Api()
     api._results = [_paper(openalex_id="W1"), _paper(openalex_id="W2")]
-    res = api.export(str(tmp_path / "out.bib"), "bibtex")
+    res = api.export(_choose(api, tmp_path / "out.bib"), "bibtex")
     assert res["count"] == 2
 
 
@@ -265,14 +272,14 @@ def test_save_env_settings_preserves_unrelated_lines(tmp_path):
     save_env_settings({"CONTACT_EMAIL": "new@example.com"}, env_path=env_path)
     content = env_path.read_text(encoding="utf-8")
     assert "SOME_OTHER_VAR=keep-me" in content
-    assert "CONTACT_EMAIL=new@example.com" in content
+    assert 'CONTACT_EMAIL="new@example.com"' in content
     assert "old@example.com" not in content
 
 
 def test_save_env_settings_creates_new_file(tmp_path):
     env_path = tmp_path / ".env"
     save_env_settings({"CONTACT_EMAIL": "a@b.com"}, env_path=env_path)
-    assert "CONTACT_EMAIL=a@b.com" in env_path.read_text(encoding="utf-8")
+    assert 'CONTACT_EMAIL="a@b.com"' in env_path.read_text(encoding="utf-8")
 
 
 # -- _config_from_params ----------------------------------------------------------
@@ -293,7 +300,7 @@ def test_config_from_params_doc_type_filter():
 def test_save_env_settings_strips_trailing_newline(tmp_path):
     env = tmp_path / ".env"
     save_env_settings({"SEMANTIC_SCHOLAR_API_KEY": "abc123\n"}, env_path=env)
-    assert env.read_text(encoding="utf-8") == "SEMANTIC_SCHOLAR_API_KEY=abc123\n"
+    assert env.read_text(encoding="utf-8") == 'SEMANTIC_SCHOLAR_API_KEY="abc123"\n'
 
 
 def test_save_env_settings_rejects_injected_lines(tmp_path):
@@ -446,7 +453,7 @@ def test_api_search_annotates_access_and_lists_publishers(clean_access_env):
     res2 = api.set_publishers(["Elsevier BV"])
     by_title = {p["title"]: p for p in res2["papers"]}
     assert by_title["Closed"]["access_status"] == "institution"
-    assert "SUBSCRIBED_PUBLISHERS=Elsevier BV" in (Path(".env")).read_text(encoding="utf-8")
+    assert 'SUBSCRIBED_PUBLISHERS="Elsevier BV"' in (Path(".env")).read_text(encoding="utf-8")
 
 
 def test_api_save_settings_rejects_non_https_template(clean_access_env):
@@ -548,7 +555,7 @@ def test_export_english_excel_and_open_folder(tmp_path, monkeypatch):
     api.resolve("10.1/abc")
     api.search({"generations": "1", "max_articles": "5", "modes": ["references"]})
     out = tmp_path / "review.xlsx"
-    res = api.export(str(out), "xlsx", [], "en")
+    res = api.export(_choose(api, out), "xlsx", [], "en")
     assert res["status"] == "ok" and res["name"] == "review.xlsx"
     assert load_workbook(out).active["A1"].value == "Title"
 
@@ -566,3 +573,47 @@ def test_paper_dict_carries_breakdown_and_english_label():
     d = _paper_to_dict(paper)
     assert d["score_breakdown"] == bd
     assert d["access_label_en"] == "open"
+
+
+# -- endurecimiento de v3 (pruebas-seguridad-v3) ---------------------------------------
+
+
+def test_export_refuses_path_not_chosen_in_dialog(tmp_path):
+    """La pagina no puede hacer que Python escriba en una ruta que el usuario no
+    eligio en el dialogo nativo (p.ej. sobrescribir un fichero cualquiera)."""
+    api = Api()
+    api._results = [_paper()]
+    _choose(api, tmp_path / "elegida.bib")
+    target = tmp_path / "otra.bib"
+    res = api.export(str(target), "bibtex")
+    assert res["status"] == "error" and res["code"] == "path_not_chosen"
+    assert not target.exists()
+
+
+def test_bind_window_is_not_exposed_to_javascript():
+    """pywebview expone a JS todo metodo publico de Api: lo interno va con _."""
+    exposed = {name for name in dir(Api) if not name.startswith("_") and callable(getattr(Api, name))}
+    assert "bind_window" not in exposed
+    assert exposed == {
+        "resolve", "confirm_candidate", "pick_pdf", "search", "set_publishers", "open_link",
+        "test_library_link", "get_progress", "cancel_search", "pick_save_path", "export",
+        "open_export_folder", "get_settings", "save_settings",
+    }
+
+
+def test_env_values_with_hash_survive_a_roundtrip(tmp_path):
+    from dotenv import dotenv_values
+
+    env = tmp_path / ".env"
+    save_env_settings(
+        {
+            "SUBSCRIBED_PUBLISHERS": 'Elsevier BV; Wiley #2 Press; Pub "Quoted"',
+            "LIBRARY_LINK_TEMPLATE": "https://p.edu/login?url=",
+            "CONTACT_EMAIL": "a\\b@example.com",
+        },
+        env_path=env,
+    )
+    values = dotenv_values(env)
+    assert values["SUBSCRIBED_PUBLISHERS"] == 'Elsevier BV; Wiley #2 Press; Pub "Quoted"'
+    assert values["LIBRARY_LINK_TEMPLATE"] == "https://p.edu/login?url="
+    assert values["CONTACT_EMAIL"] == "a\\b@example.com"

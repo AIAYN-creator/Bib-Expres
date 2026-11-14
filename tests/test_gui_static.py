@@ -47,3 +47,12 @@ def test_every_id_used_in_app_js_exists_in_html():
 
 def test_logo_is_bundled_with_the_gui():
     assert (STATIC / "logo.png").stat().st_size > 1000
+
+
+def test_content_security_policy_blocks_remote_and_inline():
+    html = (STATIC / "index.html").read_text(encoding="utf-8")
+    csp = re.search(r'http-equiv="Content-Security-Policy" content="([^"]+)"', html).group(1)
+    assert "default-src 'none'" in csp
+    assert "script-src 'self'" in csp and "unsafe-inline" not in csp
+    # y la pagina no depende de nada inline que la CSP bloquearia
+    assert not re.search(r"<script>(?!\s*</script>)|\son[a-z]+=|style=\"", html)
