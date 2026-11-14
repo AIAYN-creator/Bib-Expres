@@ -47,7 +47,7 @@ def _parse_doc_types(raw: str) -> set[str]:
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="bib-expres",
-        description="Snowballing bibliografico a partir de un paper padre (DOI).",
+        description="Snowballing bibliografico a partir de un paper padre (DOI, arXiv, titulo o PDF).",
     )
     parser.add_argument("--version", action="version", version=__version__)
     parser.add_argument("--doi", help="DOI del paper padre (atajo directo, sin autodeteccion)")
