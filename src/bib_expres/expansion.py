@@ -55,6 +55,7 @@ def expand(
     if ExpansionMode.SIMILAR in config.modes and similar_client is None:
         similar_client = SemanticScholarClient(openalex_client=openalex)
 
+    allowed_languages = _effective_languages(root, config)
     root.relevance_score = 1.0  # el padre siempre es el punto de partida, no se puntua contra si mismo
     seen: dict[str, Paper] = {dedup_key(root): root}
     results: list[Paper] = [root]
@@ -103,6 +104,12 @@ def expand(
                 continue
             if config.require_open_access and not candidate.open_access:
                 continue
+            if (
+                allowed_languages is not None
+                and candidate.language is not None
+                and candidate.language not in allowed_languages
+            ):
+                continue
             seen[key] = candidate
             scored_candidates.append(candidate)
 
@@ -118,6 +125,14 @@ def expand(
 
     report(None, finished=True, cancelled=cancelled)
     return results
+
+
+def _effective_languages(root: Paper, config: SearchConfig) -> set[str] | None:
+    """None = sin filtro de idioma. "Idioma de la busqueda" = el del paper padre;
+    si OpenAlex no lo sabe, no se filtra (mejor de mas que descartar a ciegas)."""
+    if config.same_language_as_root:
+        return {root.language} if root.language else None
+    return config.languages
 
 
 def _fetch_candidates(

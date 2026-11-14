@@ -64,6 +64,16 @@
     <div class="field">
       <label class="checkbox"><input id="param-open-access" type="checkbox"> Solo acceso abierto</label>
     </div>
+    <div class="field">
+      <label for="param-language-mode">Idioma de los artículos</label>
+      <select id="param-language-mode">
+        <option value="any" selected>En cualquier idioma</option>
+        <option value="same" id="param-language-same">En el idioma del paper de partida</option>
+        <option value="custom">Solo en estos idiomas...</option>
+      </select>
+      <input id="param-languages" type="text" class="hidden" placeholder="Códigos separados por coma, p.ej. es, en">
+      <p class="hint">Los artículos sin idioma conocido no se descartan nunca.</p>
+    </div>
 
     <details class="advanced">
       <summary>Avanzado</summary>

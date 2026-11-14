@@ -197,3 +197,5 @@ details.advanced summary { cursor: pointer; color: var(--muted); font-size: 0.9r
 
 .curation-buttons { justify-content: center; }
 .curation-buttons button { min-width: 140px; }
+
+#param-languages { margin-top: 0.4rem; margin-bottom: 0.9rem; }

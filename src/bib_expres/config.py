@@ -30,10 +30,20 @@ class SearchConfig:
     relevance_threshold: float = 0.3
     allowed_doc_types: set[str] | None = None  # None = sin filtro, cualquier tipo entra
     require_open_access: bool = False
+    # Filtro por idioma, al estilo Google Scholar. Por defecto, cualquier idioma.
+    # same_language_as_root=True -> solo el idioma del paper padre (si se conoce).
+    # languages={...} -> solo esos codigos ISO 639-1 ('es', 'en'...).
+    # Los articulos sin idioma conocido NUNCA se descartan por este filtro.
+    languages: set[str] | None = None
+    same_language_as_root: bool = False
 
     def __post_init__(self) -> None:
         if not 1 <= self.generations <= 5:
             raise ValueError("generations debe estar entre 1 y 5")
+        if self.languages is not None:
+            self.languages = {code.strip().lower() for code in self.languages if code.strip()}
+            if not self.languages:
+                self.languages = None
 
 
 @dataclass

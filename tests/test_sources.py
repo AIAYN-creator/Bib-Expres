@@ -397,3 +397,9 @@ def test_parse_openalex_work_without_topic_or_keywords():
     paper = parse_openalex_work({"id": "https://openalex.org/W1", "display_name": "X"})
     assert paper.topic is None
     assert paper.keywords == []
+
+
+def test_parse_openalex_work_language():
+    paper = parse_openalex_work({"id": "https://openalex.org/W1", "display_name": "X", "language": "es"})
+    assert paper.language == "es"
+    assert parse_openalex_work({"id": "https://openalex.org/W1", "display_name": "X"}).language is None

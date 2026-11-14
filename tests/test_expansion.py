@@ -224,3 +224,52 @@ def test_expand_without_callbacks_still_works():
     openalex = _FakeOpenAlex(references={"root": [_paper("x")]})
     config = SearchConfig(generations=1, max_articles=10, modes={ExpansionMode.REFERENCES})
     assert len(expand(root, config, openalex_client=openalex)) == 2
+
+
+# -- filtro por idioma ---------------------------------------------------------
+
+
+def _lang_graph():
+    root = _paper("root", language="es")
+    es = _paper("es1", language="es")
+    en = _paper("en1", language="en")
+    unknown = _paper("xx1", language=None)
+    return root, _FakeOpenAlex(references={"root": [es, en, unknown]})
+
+
+def test_expand_any_language_by_default():
+    root, openalex = _lang_graph()
+    config = SearchConfig(generations=1, max_articles=10, modes={ExpansionMode.REFERENCES})
+    ids = {p.openalex_id for p in expand(root, config, openalex_client=openalex)}
+    assert ids == {"root", "es1", "en1", "xx1"}
+
+
+def test_expand_same_language_as_root_keeps_unknown():
+    root, openalex = _lang_graph()
+    config = SearchConfig(
+        generations=1, max_articles=10, modes={ExpansionMode.REFERENCES}, same_language_as_root=True
+    )
+    ids = {p.openalex_id for p in expand(root, config, openalex_client=openalex)}
+    assert ids == {"root", "es1", "xx1"}
+
+
+def test_expand_same_language_with_unknown_root_language_does_not_filter():
+    _, openalex = _lang_graph()
+    root = _paper("root", language=None)
+    config = SearchConfig(
+        generations=1, max_articles=10, modes={ExpansionMode.REFERENCES}, same_language_as_root=True
+    )
+    assert len(expand(root, config, openalex_client=openalex)) == 4
+
+
+def test_expand_explicit_languages():
+    root, openalex = _lang_graph()
+    config = SearchConfig(
+        generations=1, max_articles=10, modes={ExpansionMode.REFERENCES}, languages={"EN "}
+    )
+    ids = {p.openalex_id for p in expand(root, config, openalex_client=openalex)}
+    assert ids == {"root", "en1", "xx1"}  # el padre nunca se descarta
+
+
+def test_search_config_empty_languages_means_no_filter():
+    assert SearchConfig(languages={" ", ""}).languages is None

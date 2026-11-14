@@ -375,3 +375,25 @@ def test_api_new_search_clears_previous_cancel():
     api.cancel_search()
     res = api.search({"generations": "1", "max_articles": "5", "modes": ["references"]})
     assert res["cancelled"] is False
+
+
+# -- idioma ---------------------------------------------------------------------
+
+
+def test_config_from_params_language_modes():
+    assert _config_from_params({}).languages is None
+    assert _config_from_params({}).same_language_as_root is False
+    assert _config_from_params({"language_mode": "same"}).same_language_as_root is True
+    cfg = _config_from_params({"language_mode": "custom", "languages": "es, en"})
+    assert cfg.languages == {"es", "en"}
+
+
+def test_config_from_params_custom_language_requires_codes():
+    with pytest.raises(ValueError):
+        _config_from_params({"language_mode": "custom", "languages": " "})
+    with pytest.raises(ValueError):
+        _config_from_params({"language_mode": "klingon"})
+
+
+def test_paper_to_dict_includes_language():
+    assert _paper_to_dict(_paper(language="es"))["language"] == "es"

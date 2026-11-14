@@ -35,3 +35,4 @@ class Paper:
     abstract: str | None = None
     topic: str | None = None
     keywords: list[str] = field(default_factory=list)
+    language: str | None = None  # ISO 639-1 segun OpenAlex: 'en', 'es'...

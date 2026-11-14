@@ -38,12 +38,21 @@ def _paper_to_dict(paper: Paper) -> dict:
         "doc_type": paper.doc_type,
         "open_access": paper.open_access,
         "abstract": paper.abstract,
+        "language": paper.language,
     }
 
 
 def _config_from_params(params: dict) -> SearchConfig:
     raw_modes = params.get("modes") or ["references", "citations"]
     allowed_doc_types = set(params["allowed_doc_types"]) if params.get("allowed_doc_types") else None
+    language_mode = params.get("language_mode", "any")
+    if language_mode not in ("any", "same", "custom"):
+        raise ValueError(f"modo de idioma desconocido: {language_mode}")
+    languages = None
+    if language_mode == "custom":
+        languages = {c.strip().lower() for c in str(params.get("languages", "")).split(",") if c.strip()}
+        if not languages:
+            raise ValueError("elige al menos un idioma (codigos como es, en)")
     return SearchConfig(
         generations=int(params.get("generations", 2)),
         max_articles=int(params.get("max_articles", 200)),
@@ -57,6 +66,8 @@ def _config_from_params(params: dict) -> SearchConfig:
         relevance_threshold=float(params.get("relevance_threshold", 0.3)),
         allowed_doc_types=allowed_doc_types,
         require_open_access=bool(params.get("require_open_access", False)),
+        languages=languages,
+        same_language_as_root=language_mode == "same",
     )
 
 

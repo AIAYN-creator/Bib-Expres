@@ -44,6 +44,22 @@ def _parse_doc_types(raw: str) -> set[str]:
     return {t.strip() for t in raw.split(",") if t.strip()}
 
 
+def _parse_language(raw: str) -> str | set[str] | None:
+    """'any' -> None (sin filtro), 'same' -> idioma del paper padre,
+    'es,en' -> esos codigos."""
+    value = raw.strip().lower()
+    if value in ("", "any"):
+        return None
+    if value == "same":
+        return "same"
+    codes = {c.strip() for c in value.split(",") if c.strip()}
+    if not all(c.isalpha() and 2 <= len(c) <= 3 for c in codes):
+        raise argparse.ArgumentTypeError(
+            f"idioma no valido: '{raw}' -- usa any, same, o codigos ISO como es,en"
+        )
+    return codes
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="bib-expres",
@@ -94,6 +110,14 @@ def _build_parser() -> argparse.ArgumentParser:
         choices=["bibtex", "ris", "csljson", "xlsx"],
         default=None,
         help="Formato de salida; por defecto se infiere de la extension de --output",
+    )
+    parser.add_argument(
+        "--language",
+        type=_parse_language,
+        default=None,
+        help="Idioma de los articulos: any (cualquiera, por defecto), same (el del "
+        "paper padre) o codigos ISO separados por coma (p.ej. es,en). Los articulos "
+        "sin idioma conocido no se descartan.",
     )
     parser.add_argument(
         "--quiet",
@@ -164,6 +188,8 @@ def main(argv: list[str] | None = None) -> int:
             relevance_threshold=args.relevance_threshold,
             allowed_doc_types=args.doc_types,
             require_open_access=args.open_access_only,
+            languages=args.language if isinstance(args.language, set) else None,
+            same_language_as_root=args.language == "same",
         )
     except ValueError as exc:
         print(f"Error de configuracion: {exc}", file=sys.stderr)

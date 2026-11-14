@@ -148,3 +148,17 @@ def test_print_progress_clears_line_when_finished(capsys):
     _print_progress(ProgressEvent(found=12, max_articles=200, generation=0, current_title=None, finished=True))
     _, err = capsys.readouterr()
     assert err.strip() == ""
+
+
+def test_language_flag_parsing():
+    parser = _build_parser()
+    assert parser.parse_args(["--doi", "10.1/x"]).language is None
+    assert parser.parse_args(["--doi", "10.1/x", "--language", "any"]).language is None
+    assert parser.parse_args(["--doi", "10.1/x", "--language", "same"]).language == "same"
+    assert parser.parse_args(["--doi", "10.1/x", "--language", "es, EN"]).language == {"es", "en"}
+
+
+def test_language_flag_rejects_garbage():
+    parser = _build_parser()
+    with pytest.raises(SystemExit):
+        parser.parse_args(["--doi", "10.1/x", "--language", "es;drop"])

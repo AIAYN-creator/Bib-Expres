@@ -191,7 +191,21 @@
 
   // -- Pantalla 2: parametros de busqueda --------------------------------------
 
+  const LANGUAGE_NAMES = {
+    en: "inglés", es: "español", fr: "francés", de: "alemán", it: "italiano",
+    pt: "portugués", ca: "catalán", zh: "chino", ja: "japonés", ru: "ruso",
+  };
+
+  document.getElementById("param-language-mode").addEventListener("change", (e) => {
+    document.getElementById("param-languages").classList.toggle("hidden", e.target.value !== "custom");
+  });
+
   function showParamsScreen(paper) {
+    const sameOption = document.getElementById("param-language-same");
+    const lang = paper.language;
+    sameOption.textContent = lang
+      ? `En el idioma del paper de partida (${LANGUAGE_NAMES[lang] || lang})`
+      : "En el idioma del paper de partida (desconocido: no filtra)";
     const chip = document.getElementById("params-paper-chip");
     chip.innerHTML = `<strong></strong><br><span class="hint"></span>`;
     chip.querySelector("strong").textContent = "✓ " + paper.title;
@@ -216,6 +230,8 @@
       weight_recency: document.getElementById("param-weight-recency").value,
       allowed_doc_types: allowedDocTypes,
       require_open_access: document.getElementById("param-open-access").checked,
+      language_mode: document.getElementById("param-language-mode").value,
+      languages: document.getElementById("param-languages").value,
     };
   }
 
