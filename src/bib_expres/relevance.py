@@ -124,23 +124,38 @@ def final_score(
     return total, breakdown
 
 
-def explain(breakdown: dict | None) -> str:
+_EXPLAIN_TEXT = {
+    "es": {
+        "rel": "relevancia {r:.2f} (tema {t:.2f}, citas {c:.2f}, recencia {y:.2f})",
+        "conn1": "conectado con 1 paper de la búsqueda",
+        "connN": "conectado con {n} papers de la búsqueda",
+        "kw": "comparte: {k}",
+    },
+    "en": {
+        "rel": "relevance {r:.2f} (topic {t:.2f}, citations {c:.2f}, recency {y:.2f})",
+        "conn1": "linked to 1 paper in the search",
+        "connN": "linked to {n} papers in the search",
+        "kw": "shares: {k}",
+    },
+}
+
+
+def explain(breakdown: dict | None, lang: str = "es") -> str:
     """Una linea legible: por que este articulo esta donde esta."""
     if not breakdown:
         return ""
+    text = _EXPLAIN_TEXT.get(lang, _EXPLAIN_TEXT["es"])
     parts = [
-        f"relevancia {breakdown['relevancia']:.2f} (tema {breakdown['tema']:.2f}, "
-        f"citas {breakdown['citas']:.2f}, recencia {breakdown['recencia']:.2f})"
+        text["rel"].format(
+            r=breakdown["relevancia"], t=breakdown["tema"], c=breakdown["citas"], y=breakdown["recencia"]
+        )
     ]
     n = breakdown.get("conexiones", 0)
-    if n > 1:
-        parts.append(f"conectado con {n} papers de la búsqueda")
-    else:
-        parts.append("conectado con 1 paper de la búsqueda")
+    parts.append(text["connN"].format(n=n) if n > 1 else text["conn1"])
     kws = breakdown.get("palabras_clave") or []
     if kws:
         shown = ", ".join(kws[:4]) + ("..." if len(kws) > 4 else "")
-        parts.append(f"comparte: {shown}")
+        parts.append(text["kw"].format(k=shown))
     return f"{breakdown['final']:.2f} = " + " · ".join(parts)
 
 

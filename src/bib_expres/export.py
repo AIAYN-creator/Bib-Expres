@@ -5,7 +5,7 @@ import re
 from pathlib import Path
 from urllib.parse import quote
 
-from .access import ACCESS_LABELS, is_openable_url
+from .access import access_label, is_openable_url
 from .models import Paper
 from .relevance import explain
 
@@ -140,17 +140,17 @@ def write_csljson(papers: list[Paper], path: str) -> None:
 
 
 XLSX_COLUMNS = [
-    # (cabecera, ancho aproximado en caracteres)
-    ("Título", 60),
-    ("Autores", 35),
-    ("DOI", 28),
-    ("Tema", 30),
-    ("Palabras clave", 40),
-    ("Relevancia", 11),
-    ("Por qué", 60),
-    ("Acceso", 22),
-    ("Enlace de acceso", 30),
-    ("Otras notas", 45),
+    # (cabecera es, cabecera en, ancho aproximado en caracteres)
+    ("Título", "Title", 60),
+    ("Autores", "Authors", 35),
+    ("DOI", "DOI", 28),
+    ("Tema", "Topic", 30),
+    ("Palabras clave", "Keywords", 40),
+    ("Relevancia", "Relevance", 11),
+    ("Por qué", "Why", 60),
+    ("Acceso", "Access", 22),
+    ("Enlace de acceso", "Access link", 30),
+    ("Otras notas", "Other notes", 45),
 ]
 
 
@@ -164,7 +164,7 @@ def _paper_url(paper: Paper) -> str | None:
     return None
 
 
-def write_xlsx(papers: list[Paper], path: str) -> None:
+def write_xlsx(papers: list[Paper], path: str, lang: str = "es") -> None:
     """Hoja para la primera ronda de una revision bibliografica: una fila por
     paper, con columna libre para notas. Todo texto se fuerza a tipo texto: openpyxl
     trataria como formula un titulo que empiece por '=' (inyeccion de formulas)."""
@@ -174,10 +174,10 @@ def write_xlsx(papers: list[Paper], path: str) -> None:
 
     wb = Workbook()
     ws = wb.active
-    ws.title = "Bibliografía"
+    ws.title = "Bibliography" if lang == "en" else "Bibliografía"
 
-    for col, (header, width) in enumerate(XLSX_COLUMNS, start=1):
-        cell = ws.cell(row=1, column=col, value=header)
+    for col, (header_es, header_en, width) in enumerate(XLSX_COLUMNS, start=1):
+        cell = ws.cell(row=1, column=col, value=header_en if lang == "en" else header_es)
         cell.font = Font(bold=True)
         ws.column_dimensions[get_column_letter(col)].width = width
 
@@ -205,11 +205,11 @@ def write_xlsx(papers: list[Paper], path: str) -> None:
             score_cell = ws.cell(row=row, column=6, value=round(paper.relevance_score, 3))
             score_cell.number_format = "0.00"
 
-        text_cell(row, 7, explain(paper.score_breakdown))
+        text_cell(row, 7, explain(paper.score_breakdown, lang))
         if paper.access_status:
-            text_cell(row, 8, ACCESS_LABELS.get(paper.access_status, paper.access_status))
+            text_cell(row, 8, access_label(paper.access_status, lang) or paper.access_status)
         if is_openable_url(paper.access_url):
-            link_cell = text_cell(row, 9, "abrir")
+            link_cell = text_cell(row, 9, "open" if lang == "en" else "abrir")
             link_cell.hyperlink = paper.access_url
             link_cell.style = "Hyperlink"
 
@@ -237,10 +237,15 @@ def infer_format(output_path: str) -> str:
     return _FORMAT_BY_EXTENSION.get(Path(output_path).suffix.lower(), "bibtex")
 
 
-def write(papers: list[Paper], path: str, format: str = "bibtex") -> None:
+def write(papers: list[Paper], path: str, format: str = "bibtex", lang: str = "es") -> None:
+    """`lang` solo afecta a los formatos con texto para personas (el Excel); los
+    de bibliografia (BibTeX, RIS, CSL-JSON) no tienen textos que traducir."""
     try:
         exporter = EXPORTERS[format]
     except KeyError:
         valid = ", ".join(EXPORTERS)
         raise ValueError(f"formato desconocido '{format}' -- validos: {valid}") from None
-    exporter(papers, path)
+    if format == "xlsx":
+        exporter(papers, path, lang=lang)
+    else:
+        exporter(papers, path)

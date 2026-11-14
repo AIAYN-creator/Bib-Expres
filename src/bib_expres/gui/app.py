@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import json
 import os
+import subprocess
+import sys
 import threading
 import time
 import webbrowser
@@ -8,9 +11,11 @@ from pathlib import Path
 
 import webview
 from dotenv import load_dotenv
+from webview.dom import DOMEventHandler
 
 from ..access import (
     ACCESS_LABELS,
+    access_label,
     TEST_DOI,
     AccessConfig,
     annotate_access,
@@ -42,7 +47,17 @@ _ENV_KEYS = (
     "SEMANTIC_SCHOLAR_API_KEY",
     "LIBRARY_LINK_TEMPLATE",
     "SUBSCRIBED_PUBLISHERS",
+    "UI_LANGUAGE",
+    "UI_THEME",
 )
+_UI_LANGUAGES = ("es", "en")
+_UI_THEMES = ("system", "light", "dark")
+
+
+def _error(code: str, message: str = "", **data) -> dict:
+    """Error para la GUI: `code` es lo que el frontend traduce (es/en); `message`
+    es el detalle en espanol, que se muestra tal cual en la interfaz en espanol."""
+    return {"status": "error", "code": code, "message": message, **data}
 
 
 def _paper_to_dict(paper: Paper) -> dict:
@@ -61,8 +76,11 @@ def _paper_to_dict(paper: Paper) -> dict:
         "publisher": paper.publisher_lineage[-1] if paper.publisher_lineage else None,
         "access_status": paper.access_status,
         "access_label": ACCESS_LABELS.get(paper.access_status or "", None),
+        "access_label_en": access_label(paper.access_status, "en"),
         "access_url": paper.access_url if is_openable_url(paper.access_url) else None,
         "explanation": explain(paper.score_breakdown),
+        # El frontend pinta el desglose en el idioma de la interfaz a partir de esto
+        "score_breakdown": paper.score_breakdown,
     }
 
 
@@ -112,6 +130,10 @@ def save_env_settings(settings: dict, env_path: Path | None = None) -> None:
     """Lee el .env existente (si lo hay), actualiza solo las claves conocidas y
     reescribe -- no toca ninguna otra linea/clave que ya hubiera."""
     settings = {k: _clean_env_value(v) for k, v in settings.items() if k in _ENV_KEYS}
+    if settings.get("UI_LANGUAGE") and settings["UI_LANGUAGE"] not in _UI_LANGUAGES:
+        raise ValueError("idioma de la interfaz no valido")
+    if settings.get("UI_THEME") and settings["UI_THEME"] not in _UI_THEMES:
+        raise ValueError("tema no valido")
     if "LIBRARY_LINK_TEMPLATE" in settings:
         settings["LIBRARY_LINK_TEMPLATE"] = validate_library_template(settings["LIBRARY_LINK_TEMPLATE"])
     path = env_path or Path(".env")
@@ -161,6 +183,7 @@ class Api:
         self._progress: ProgressEvent | None = None
         self._last_activity: float | None = None
         self._cancel_requested = threading.Event()
+        self._last_export_path: Path | None = None
 
     def bind_window(self, window: webview.Window) -> None:
         self._window = window
@@ -180,12 +203,14 @@ class Api:
                 "query": exc.query,
                 "candidates": [_paper_to_dict(p) for p in self._candidates],
             }
-        except (DOIResolutionError, RateLimitedError) as exc:
-            return {"status": "error", "message": str(exc)}
+        except DOIResolutionError as exc:
+            return _error("resolve_failed", str(exc))
+        except RateLimitedError as exc:
+            return _rate_limited(exc)
 
     def confirm_candidate(self, index: int) -> dict:
         if not 0 <= index < len(self._candidates):
-            return {"status": "error", "message": "seleccion invalida"}
+            return _error("invalid_selection", "selección inválida")
         self._root = self._candidates[index]
         return {"status": "resolved", "paper": _paper_to_dict(self._root)}
 
@@ -201,11 +226,11 @@ class Api:
 
     def search(self, params: dict) -> dict:
         if self._root is None:
-            return {"status": "error", "message": "no hay paper padre resuelto todavia"}
+            return _error("no_root", "no hay paper padre resuelto todavía")
         try:
             config = _config_from_params(params)
         except ValueError as exc:
-            return {"status": "error", "message": str(exc)}
+            return _error("invalid_params", str(exc))
 
         install = InstallConfig.from_env()
         semantic_scholar = self._semantic_scholar or SemanticScholarClient(
@@ -234,12 +259,15 @@ class Api:
                     generation=0, current_title=None, finished=True,
                 )
             )
-            return {"status": "error", "message": str(exc)}
+            return _rate_limited(exc)
         access = self._access_config()
         annotate_access(self._results, access)
+        with self._progress_lock:
+            candidates = self._progress.candidates if self._progress else len(self._results)
         return {
             "status": "ok",
             "count": len(self._results),
+            "candidates": candidates,
             "cancelled": self._cancel_requested.is_set(),
             "papers": [_paper_to_dict(p) for p in self._results],
             "publishers": publisher_counts(self._results[1:]),
@@ -272,7 +300,7 @@ class Api:
         try:
             save_env_settings({"SUBSCRIBED_PUBLISHERS": format_publishers(chosen)})
         except ValueError as exc:
-            return {"status": "error", "message": str(exc)}
+            return _error("invalid_settings", str(exc))
         os.environ["SUBSCRIBED_PUBLISHERS"] = format_publishers(chosen)
         annotate_access(self._results, self._access_config())
         return {"status": "ok", "papers": [_paper_to_dict(p) for p in self._results]}
@@ -281,7 +309,7 @@ class Api:
         """Abre un enlace en el navegador del sistema (no dentro de la app). Solo
         http(s): las URLs de acceso abierto vienen de una API externa."""
         if not is_openable_url(url):
-            return {"status": "error", "message": "enlace no valido"}
+            return _error("invalid_link", "enlace no válido")
         webbrowser.open(url)
         return {"status": "ok"}
 
@@ -289,9 +317,9 @@ class Api:
         try:
             cleaned = validate_library_template(template)
         except ValueError as exc:
-            return {"status": "error", "message": str(exc)}
+            return _error("invalid_library_link", str(exc))
         if not cleaned:
-            return {"status": "error", "message": "escribe primero la plantilla"}
+            return _error("empty_library_link", "escribe primero el enlace")
         url = library_link(cleaned, TEST_DOI)
         webbrowser.open(url)
         return {"status": "ok", "url": url}
@@ -331,16 +359,35 @@ class Api:
         )
         return result[0] if result else None
 
-    def export(self, path: str, format: str, excluded_indices: list[int] | None = None) -> dict:
+    def export(
+        self,
+        path: str,
+        format: str,
+        excluded_indices: list[int] | None = None,
+        lang: str = "es",
+    ) -> dict:
         if not self._results:
-            return {"status": "error", "message": "no hay resultados que exportar"}
+            return _error("nothing_to_export", "no hay resultados que exportar")
         excluded = set(excluded_indices or [])
         papers = [p for i, p in enumerate(self._results) if i not in excluded]
         try:
-            write(papers, path, format=format)
+            write(papers, path, format=format, lang=lang if lang in _UI_LANGUAGES else "es")
         except (OSError, ValueError) as exc:
-            return {"status": "error", "message": str(exc)}
-        return {"status": "ok", "path": path, "count": len(papers)}
+            return _error("export_failed", str(exc))
+        self._last_export_path = Path(path)
+        return {"status": "ok", "path": path, "name": Path(path).name, "count": len(papers)}
+
+    def open_export_folder(self) -> dict:
+        """Abre en el explorador la carpeta del ultimo fichero exportado en esta
+        sesion -- nunca una ruta que llegue de JS."""
+        if self._last_export_path is None or not self._last_export_path.parent.is_dir():
+            return _error("no_export_folder", "no hay ninguna exportación todavía")
+        folder = str(self._last_export_path.parent)
+        if sys.platform == "win32":
+            os.startfile(folder)  # noqa: S606 -- carpeta propia, no una orden
+        else:
+            subprocess.Popen(["open" if sys.platform == "darwin" else "xdg-open", folder])
+        return {"status": "ok"}
 
     # -- Ajustes ------------------------------------------------------------
 
@@ -349,17 +396,40 @@ class Api:
             "contact_email": os.environ.get("CONTACT_EMAIL", ""),
             "semantic_scholar_api_key": os.environ.get("SEMANTIC_SCHOLAR_API_KEY", ""),
             "library_link_template": os.environ.get("LIBRARY_LINK_TEMPLATE", ""),
+            "ui_language": os.environ.get("UI_LANGUAGE", ""),
+            "ui_theme": os.environ.get("UI_THEME", "") or "system",
         }
 
     def save_settings(self, settings: dict) -> dict:
         try:
             save_env_settings(settings)
         except ValueError as exc:
-            return {"status": "error", "message": str(exc)}
+            return _error("invalid_settings", str(exc))
         for key in _ENV_KEYS:
             if key in settings:
                 os.environ[key] = _clean_env_value(settings[key])
         return {"status": "ok"}
+
+
+def _rate_limited(exc: RateLimitedError) -> dict:
+    return _error("rate_limited", str(exc), source=exc.source, wait_seconds=exc.retry_after)
+
+
+def _bind_pdf_drop(window: webview.Window) -> None:
+    """Soltar un PDF en la ventana: el navegador no da la ruta real del fichero a
+    JS, pero pywebview si a Python (`pywebviewFullPath`). Se la pasamos a la GUI,
+    que la trata igual que si se hubiera elegido con el boton."""
+
+    def on_drop(event: dict) -> None:
+        files = (event.get("dataTransfer") or {}).get("files") or []
+        for file in files:
+            path = file.get("pywebviewFullPath")
+            if path and str(path).lower().endswith(".pdf"):
+                window.evaluate_js(f"window.bibExpres && window.bibExpres.onPdfDropped({json.dumps(path)})")
+                return
+
+    window.dom.document.events.dragover += DOMEventHandler(lambda e: None, True, True, debounce=500)
+    window.dom.document.events.drop += DOMEventHandler(on_drop, True, True)
 
 
 def main() -> None:
@@ -374,7 +444,7 @@ def main() -> None:
         min_size=(720, 560),
     )
     api.bind_window(window)
-    webview.start()
+    webview.start(_bind_pdf_drop, window)
 
 
 if __name__ == "__main__":

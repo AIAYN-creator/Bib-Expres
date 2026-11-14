@@ -7,216 +7,263 @@
 </head>
 <body>
 
-<header>
-  <h1>bib-exprés</h1>
-  <button id="settings-btn" class="link-btn" title="Ajustes">⚙ Ajustes</button>
+<header class="appbar">
+  <div class="brand"><img src="logo.png" alt="">bib_exprés</div>
+  <nav class="steps" id="steps">
+    <span class="step" data-step="1"><span class="n">1</span><span data-i="step1">Paper</span></span>
+    <span class="step" data-step="2"><span class="n">2</span><span data-i="step2">Parámetros</span></span>
+    <span class="step" data-step="3"><span class="n">3</span><span data-i="step3">Resultados</span></span>
+    <span class="step" data-step="4"><span class="n">4</span><span data-i="step4">Curación</span></span>
+    <span class="step" data-step="5"><span class="n">5</span><span data-i="step5">Exportar</span></span>
+  </nav>
+  <div class="appbar-right">
+    <div class="lang" role="group" aria-label="Idioma / Language">
+      <button data-lang="es">ES</button><button data-lang="en">EN</button>
+    </div>
+    <button id="settings-btn" class="iconbtn">⚙ <span data-i="settings">Ajustes</span></button>
+  </div>
 </header>
 
-<main>
+<main class="main">
 
-  <!-- Pantalla 1: identificar el paper padre -->
+  <!-- 1. Inicio: el paper de partida -->
   <section id="screen-input" class="screen">
-    <h2>¿De qué paper partimos?</h2>
-    <p class="hint">DOI, enlace de arXiv o título del paper.</p>
-    <div class="row">
-      <input id="input-raw" type="text" placeholder="10.1000/ejemplo, arxiv.org/abs/2301.12345, o un título...">
-      <button id="pick-pdf-btn" class="secondary">📄 Subir PDF</button>
+    <div class="hero">
+      <img src="logo.png" alt="" class="hero-logo">
+      <h1>bib_exprés</h1>
+      <p class="slogan" data-i="slogan">De un paper a tu bibliografía, sin cajas negras.</p>
+      <div class="card searchbox">
+        <input id="input-raw" class="input bare" type="text" data-i-ph="inputPh" autofocus>
+        <button id="resolve-btn" class="btn primary" data-i="continue">Continuar →</button>
+      </div>
+      <p class="hint" data-i="inputHint">DOI, enlace o ID de arXiv, o el título del paper.</p>
+      <p id="input-error" class="error hidden"></p>
+      <p class="or"><span data-i="or">o</span></p>
+      <div id="drop-zone" class="drop">📄 <span data-i="dropPdf">Arrastra aquí un PDF, o</span> <button id="pick-pdf-btn" class="btn text" data-i="pickPdf">elígelo</button></div>
     </div>
-    <p id="input-error" class="error hidden"></p>
-    <button id="resolve-btn" class="primary">Continuar</button>
   </section>
 
-  <!-- Pantalla 1b: confirmar candidato (solo si hace falta) -->
+  <!-- 1b. Confirmar candidato (busqueda por titulo) -->
   <section id="screen-confirm" class="screen hidden">
-    <h2>Varios resultados para "<span id="confirm-query"></span>"</h2>
-    <p class="hint">Ninguno se selecciona solo -- elige el que sea.</p>
+    <h1 data-i="confirmTitle">¿Cuál de estos es?</h1>
+    <p class="sub" id="confirm-sub"></p>
     <div id="confirm-list" class="candidate-list"></div>
-    <button id="confirm-back-btn" class="secondary">Ninguno es este -- cambiar búsqueda</button>
+    <button id="confirm-back-btn" class="btn ghost" data-i="noneIsIt">Ninguno es este: cambiar búsqueda</button>
   </section>
 
-  <!-- Pantalla 2: parámetros de búsqueda -->
+  <!-- 2. Parametros -->
   <section id="screen-params" class="screen hidden">
-    <div id="params-paper-chip" class="paper-chip"></div>
-
-    <div class="field">
-      <label for="param-generations">Generaciones a expandir</label>
-      <input id="param-generations" type="number" min="1" max="5" value="2">
-    </div>
-    <div class="field">
-      <label for="param-max-articles">Tope total de artículos</label>
-      <input id="param-max-articles" type="number" min="1" value="200">
-    </div>
-    <div class="field">
-      <label>Modos de expansión</label>
-      <label class="checkbox"><input type="checkbox" class="param-mode" value="references" checked> Referencias</label>
-      <label class="checkbox"><input type="checkbox" class="param-mode" value="citations" checked> Citas</label>
-      <label class="checkbox"><input type="checkbox" class="param-mode" value="similar"> Similares (requiere API key de Semantic Scholar)</label>
+    <div class="card rootpaper">
+      <div class="ok">✓</div>
+      <div class="rootpaper-text"><div class="t" id="params-paper-title"></div><div class="m" id="params-paper-meta"></div></div>
+      <button id="params-change-btn" class="btn text" data-i="change">Cambiar</button>
     </div>
 
-    <div class="field">
-      <label>Tipo de documento (ninguno marcado = todos)</label>
-      <label class="checkbox"><input type="checkbox" class="param-doctype" value="article"> Artículo</label>
-      <label class="checkbox"><input type="checkbox" class="param-doctype" value="preprint"> Preprint</label>
-      <label class="checkbox"><input type="checkbox" class="param-doctype" value="book-chapter"> Capítulo de libro</label>
-      <label class="checkbox"><input type="checkbox" class="param-doctype" value="dataset"> Dataset</label>
-      <label class="checkbox"><input type="checkbox" class="param-doctype" value="review"> Review</label>
-    </div>
-    <div class="field">
-      <label class="checkbox"><input id="param-open-access" type="checkbox"> Solo acceso abierto</label>
-    </div>
-    <div class="field">
-      <label for="param-language-mode">Idioma de los artículos</label>
-      <select id="param-language-mode">
-        <option value="any" selected>En cualquier idioma</option>
-        <option value="same" id="param-language-same">En el idioma del paper de partida</option>
-        <option value="custom">Solo en estos idiomas...</option>
-      </select>
-      <input id="param-languages" type="text" class="hidden" placeholder="Códigos separados por coma, p.ej. es, en">
-      <p class="hint">Los artículos sin idioma conocido no se descartan nunca.</p>
+    <div class="grid2">
+      <div class="card panel">
+        <h3 data-i="howFar">¿Hasta dónde buscar?</h3>
+        <label class="f" data-i="generations">Generaciones</label>
+        <div class="seg" id="param-generations-seg">
+          <button data-value="1">1</button><button data-value="2">2</button><button data-value="3">3</button><button data-value="4">4</button><button data-value="5">5</button>
+        </div>
+        <input id="param-generations" type="hidden" value="2">
+        <p class="hint" id="generations-hint"></p>
+
+        <label class="f mt" for="param-max-articles" data-i="maxArticles">Artículos en el resultado</label>
+        <input id="param-max-articles" class="input narrow" type="number" min="1" value="200">
+
+        <label class="f mt" data-i="follow">Seguir</label>
+        <div class="chips">
+          <label class="chip toggle"><input type="checkbox" class="param-mode" value="references" checked><span data-i="refs">Referencias</span></label>
+          <label class="chip toggle"><input type="checkbox" class="param-mode" value="citations" checked><span data-i="cites">Citas</span></label>
+          <label class="chip toggle"><input type="checkbox" class="param-mode" value="similar"><span data-i="similar">Similares</span></label>
+        </div>
+        <p class="hint" data-i="similarHint">Similares usa Semantic Scholar (mejor con API key).</p>
+      </div>
+
+      <div class="card panel">
+        <h3 data-i="filters">Filtros del resultado</h3>
+        <label class="f" for="param-language-mode" data-i="language">Idioma</label>
+        <select id="param-language-mode" class="input">
+          <option value="any" data-i="langAny">En cualquier idioma</option>
+          <option value="same" id="param-language-same"></option>
+          <option value="custom" data-i="langCustom">Solo en estos idiomas...</option>
+        </select>
+        <input id="param-languages" class="input mt-s hidden" type="text" data-i-ph="langCodesPh">
+
+        <label class="f mt" data-i="access">Acceso</label>
+        <label class="check"><input id="param-open-access" type="checkbox"><span data-i="oaOnly">Solo acceso abierto</span></label>
+        <label class="check"><input id="param-readable-only" type="checkbox"><span data-i="readableOnly">Solo lo que puedo leer (abierto + mi institución)</span></label>
+
+        <label class="f mt" data-i="docType">Tipo de documento</label>
+        <div class="chips">
+          <label class="chip toggle"><input type="checkbox" class="param-doctype" value="article"><span data-i="docArticle">Artículo</span></label>
+          <label class="chip toggle"><input type="checkbox" class="param-doctype" value="preprint"><span data-i="docPreprint">Preprint</span></label>
+          <label class="chip toggle"><input type="checkbox" class="param-doctype" value="book-chapter"><span data-i="docChapter">Capítulo</span></label>
+          <label class="chip toggle"><input type="checkbox" class="param-doctype" value="dataset"><span data-i="docDataset">Dataset</span></label>
+          <label class="chip toggle"><input type="checkbox" class="param-doctype" value="review"><span data-i="docReview">Review</span></label>
+        </div>
+        <p class="hint" data-i="filtersHint"></p>
+      </div>
     </div>
 
-    <details class="advanced">
-      <summary>Avanzado</summary>
-      <div class="field">
-        <label for="param-max-fanout">Tope de candidatos por artículo</label>
-        <input id="param-max-fanout" type="number" min="1" value="20">
-      </div>
-      <div class="field">
-        <label for="param-threshold">Umbral de relevancia (0-1)</label>
-        <input id="param-threshold" type="number" min="0" max="1" step="0.05" value="0.15">
-      </div>
-      <div class="field">
-        <label for="param-weight-topic">Peso: tema</label>
-        <input id="param-weight-topic" type="number" step="0.1" value="1.0">
-      </div>
-      <div class="field">
-        <label for="param-weight-citations">Peso: citas</label>
-        <input id="param-weight-citations" type="number" step="0.1" value="0.2">
-      </div>
-      <div class="field">
-        <label for="param-weight-recency">Peso: recencia</label>
-        <input id="param-weight-recency" type="number" step="0.1" value="0.1">
-      </div>
-      <div class="field">
-        <label for="param-weight-coupling">Peso: conexiones (en cuántos papers de la búsqueda aparece)</label>
-        <input id="param-weight-coupling" type="number" step="0.1" value="1">
-      </div>
-      <div class="field">
-        <label for="param-weight-keywords">Peso: palabras clave en común con el paper de partida</label>
-        <input id="param-weight-keywords" type="number" step="0.1" value="0.5">
+    <details class="card adv">
+      <summary data-i="advanced">Avanzado</summary>
+      <div class="adv-grid">
+        <div><label class="f" for="param-max-fanout" data-i="fanout"></label><input id="param-max-fanout" class="input" type="number" min="1" value="20"></div>
+        <div><label class="f" for="param-explore-budget" data-i="budget"></label><input id="param-explore-budget" class="input" type="number" min="1" value="30"></div>
+        <div><label class="f" for="param-threshold" data-i="threshold"></label><input id="param-threshold" class="input" type="number" min="0" max="1" step="0.05" value="0.15"></div>
+        <div><label class="f" for="param-weight-topic" data-i="wTopic"></label><input id="param-weight-topic" class="input" type="number" step="0.1" value="1.0"></div>
+        <div><label class="f" for="param-weight-citations" data-i="wCitations"></label><input id="param-weight-citations" class="input" type="number" step="0.1" value="0.2"></div>
+        <div><label class="f" for="param-weight-recency" data-i="wRecency"></label><input id="param-weight-recency" class="input" type="number" step="0.1" value="0.1"></div>
+        <div><label class="f" for="param-weight-coupling" data-i="wCoupling"></label><input id="param-weight-coupling" class="input" type="number" step="0.1" value="1"></div>
+        <div><label class="f" for="param-weight-keywords" data-i="wKeywords"></label><input id="param-weight-keywords" class="input" type="number" step="0.1" value="0.5"></div>
       </div>
     </details>
 
     <p id="params-error" class="error hidden"></p>
-    <button id="search-btn" class="primary">Buscar</button>
+    <div class="footer-actions">
+      <span class="hint" id="params-estimate"></span>
+      <button id="search-btn" class="btn primary" data-i="search">Buscar</button>
+    </div>
   </section>
 
-  <!-- Pantalla 3: progreso -->
+  <!-- 3. Progreso -->
   <section id="screen-progress" class="screen hidden">
-    <div class="spinner"></div>
-    <p id="progress-message">Un momento...</p>
-    <div id="search-progress" class="hidden">
-      <div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-        <div id="progress-fill" class="progress-fill"></div>
+    <div class="card progress-card">
+      <div class="orbit"><img src="logo.png" alt=""></div>
+      <h1 id="progress-message" class="progress-title"></h1>
+      <div id="search-progress" class="hidden">
+        <div class="bar progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="progress-fill"></i></div>
+        <div class="stats" id="progress-stats"></div>
+        <div class="now-exploring"><span data-i="exploringNow">Explorando ahora</span><div id="progress-current"></div></div>
+        <div class="activity" id="progress-activity"></div>
+        <button id="cancel-search-btn" class="btn ghost" data-i="cancel">Cancelar y ver lo encontrado</button>
       </div>
-      <p id="progress-stats" class="progress-stats"></p>
-      <p id="progress-current" class="progress-current"></p>
-      <p id="progress-activity" class="progress-activity"></p>
-      <button id="cancel-search-btn" class="secondary">Cancelar y ver lo encontrado</button>
     </div>
   </section>
 
-  <!-- Pantalla 4: resultados -->
+  <!-- 4. Resultados -->
   <section id="screen-results" class="screen hidden">
-    <h2 id="results-count"></h2>
-    <details id="institution-panel" class="advanced">
-      <summary>Mi institución: qué puedo leer</summary>
-      <p class="hint">Marca las editoriales que cubre tu institución. Es aproximado: un contrato no siempre cubre todas sus revistas ni todos los años.</p>
-      <div id="publisher-list" class="publisher-list"></div>
-      <div class="row">
-        <button id="save-publishers-btn" class="secondary">Guardar mis editoriales</button>
-        <span id="publishers-saved" class="success hidden">Guardado.</span>
-      </div>
-      <label class="checkbox"><input id="hide-unreadable" type="checkbox"> Ocultar lo que no puedo leer</label>
-      <label class="checkbox"><input id="hide-unknown" type="checkbox"> ...y también aquello cuyo acceso no se puede comprobar</label>
-    </details>
-    <div id="results-list" class="paper-list"></div>
-    <div class="row">
-      <button id="new-search-btn" class="secondary">Nueva búsqueda</button>
-      <button id="curate-btn" class="secondary">Revisar y curar</button>
-      <button id="export-btn" class="primary">Exportar todo</button>
-    </div>
-  </section>
-
-  <!-- Pantalla 4b: curacion tipo Tinder (opcional) -->
-  <section id="screen-curation" class="screen hidden">
-    <p id="curation-counter" class="hint"></p>
-    <div id="curation-card-wrap">
-      <div id="curation-card" class="curation-card">
-        <div class="curation-score"></div>
-        <div class="title"></div>
-        <div class="meta"></div>
-        <div class="abstract"></div>
-      </div>
-    </div>
-    <p class="hint">Botones, flechas ← → del teclado, o arrastra la tarjeta.</p>
-    <div class="row curation-buttons">
-      <button id="curation-discard-btn" class="secondary">✕ Descartar</button>
-      <button id="curation-keep-btn" class="primary">✓ Guardar</button>
-    </div>
-    <button id="curation-finish-btn" class="link-btn">Terminar aquí — exportar lo revisado + el resto</button>
-  </section>
-
-  <!-- Pantalla 5: exportar -->
-  <section id="screen-export" class="screen hidden">
-    <h2>Exportar bibliografía</h2>
-    <div class="field">
-      <label for="export-format">Formato</label>
-      <select id="export-format">
-        <option value="bibtex" selected>BibTeX (.bib)</option>
-        <option value="ris">RIS (.ris)</option>
-        <option value="csljson">CSL-JSON (.json)</option>
-        <option value="xlsx">Excel, para revisión (.xlsx)</option>
+    <h1 id="results-count"></h1>
+    <p class="sub" id="results-sub"></p>
+    <div class="toolbar">
+      <span class="hint" data-i="sortBy">Ordenar:</span>
+      <select id="results-sort" class="input compact">
+        <option value="relevance" data-i="sortRelevance">Relevancia</option>
+        <option value="author" data-i="sortAuthor">Autor</option>
+        <option value="year" data-i="sortYear">Año</option>
       </select>
+      <label class="chip toggle"><input id="hide-unreadable" type="checkbox"><span data-i="hideUnreadable">Ocultar lo que no puedo leer</span></label>
+      <label class="chip toggle"><input id="hide-unknown" type="checkbox"><span data-i="hideUnknown">…y lo que no se puede comprobar</span></label>
+      <span class="spacer"></span>
+      <input id="results-search" class="input compact search" type="search" data-i-ph="searchInPh">
     </div>
-    <div class="row">
-      <input id="export-path" type="text" readonly placeholder="Elige dónde guardar...">
-      <button id="export-pick-btn" class="secondary">Elegir fichero</button>
+    <div class="results-wrap">
+      <div id="results-list"></div>
+      <aside id="institution-panel" class="card side-panel">
+        <h4 data-i="myInst">Mi institución</h4>
+        <p class="hint" data-i="myInstHint"></p>
+        <div id="publisher-list" class="publisher-list"></div>
+        <button id="save-publishers-btn" class="btn ghost small wide" data-i="savePublishers">Guardar</button>
+        <span id="publishers-saved" class="success-text hidden" data-i="saved">Guardado.</span>
+      </aside>
+    </div>
+    <div class="bottombar">
+      <button id="new-search-btn" class="btn ghost" data-i="adjustSearch">← Ajustar búsqueda</button>
+      <div class="row">
+        <button id="curate-btn" class="btn ghost" data-i="curate">Revisar uno a uno</button>
+        <button id="export-btn" class="btn primary"></button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. Curacion -->
+  <section id="screen-curation" class="screen hidden">
+    <div class="cur-wrap">
+      <div class="cur-top"><span id="curation-counter"></span><button id="curation-finish-btn" class="btn text" data-i="finishHere">Terminar aquí →</button></div>
+      <div class="cur-progress"><i id="curation-progress"></i></div>
+      <div id="curation-card" class="card cur-card">
+        <div class="meta-row" id="curation-meta-row"></div>
+        <div class="t title"></div>
+        <div class="m meta"></div>
+        <div class="abs abstract"></div>
+      </div>
+      <div class="cur-actions">
+        <button id="curation-discard-btn" class="btn discard" data-i="discard">✕ Descartar</button>
+        <button id="curation-keep-btn" class="btn keep" data-i="keep">✓ Guardar</button>
+      </div>
+      <p class="cur-hint"><span class="kbd">←</span> <span class="kbd">→</span> <span data-i="curHint">o arrastra la tarjeta ·</span> <span class="kbd">Z</span> <button id="curation-undo-btn" class="btn text tiny" data-i="undo">deshacer</button></p>
+    </div>
+  </section>
+
+  <!-- 6. Exportar -->
+  <section id="screen-export" class="screen hidden">
+    <h1 data-i="exportTitle">Exportar</h1>
+    <p class="sub" data-i="exportSub">Elige formato y dónde guardarlo.</p>
+    <div class="card summary">
+      <div><b id="sum-out">0</b><span data-i="sumOut">van al fichero</span></div>
+      <div><b id="sum-discarded">0</b><span data-i="sumDiscarded">descartados en la curación</span></div>
+      <div><b id="sum-hidden">0</b><span data-i="sumHidden">ocultos</span></div>
+    </div>
+    <div class="formats" id="export-formats">
+      <button class="card fmt" data-format="bibtex"><div class="ext">.bib</div><div class="name">BibTeX</div><div class="desc" data-i="fmtBib"></div></button>
+      <button class="card fmt" data-format="ris"><div class="ext">.ris</div><div class="name">RIS</div><div class="desc" data-i="fmtRis"></div></button>
+      <button class="card fmt" data-format="csljson"><div class="ext">.json</div><div class="name">CSL-JSON</div><div class="desc" data-i="fmtCsl"></div></button>
+      <button class="card fmt" data-format="xlsx"><div class="ext">.xlsx</div><div class="name">Excel</div><div class="desc" data-i="fmtXlsx"></div></button>
+    </div>
+    <label class="f" for="export-path" data-i="saveAs">Guardar como</label>
+    <div class="pathrow">
+      <input id="export-path" class="input" type="text" readonly data-i-ph="savePathPh">
+      <button id="export-pick-btn" class="btn ghost" data-i="pick">Elegir…</button>
+      <button id="export-confirm-btn" class="btn primary" data-i="save">Guardar</button>
     </div>
     <p id="export-error" class="error hidden"></p>
-    <p id="export-success" class="success hidden"></p>
-    <div class="row">
-      <button id="export-back-btn" class="secondary">Volver</button>
-      <button id="export-confirm-btn" class="primary">Guardar</button>
-    </div>
+    <div id="export-success" class="success hidden"><span id="export-success-text"></span><button id="open-folder-btn" class="btn ghost small" data-i="openFolder">Abrir carpeta</button></div>
+    <div class="footer-actions"><button id="export-back-btn" class="btn ghost" data-i="back">← Volver</button></div>
   </section>
 
   <!-- Ajustes -->
-  <section id="screen-settings" class="screen hidden">
-    <h2>Ajustes</h2>
-    <div class="field">
-      <label for="settings-email">Email de contacto (mailto de las APIs)</label>
-      <input id="settings-email" type="text" placeholder="tu@email.com">
+  <section id="screen-settings" class="screen hidden settings">
+    <h1 data-i="settings">Ajustes</h1>
+    <p class="sub" data-i="settingsSub">Se guardan en este equipo.</p>
+    <div class="card panel">
+      <h3 data-i="interface">Interfaz</h3>
+      <div class="grid2">
+        <div>
+          <label class="f" data-i="uiLanguage">Idioma</label>
+          <div class="seg" id="settings-lang-seg"><button data-value="es">Español</button><button data-value="en">English</button></div>
+          <p class="hint" data-i="uiLanguageHint"></p>
+        </div>
+        <div>
+          <label class="f" data-i="theme">Tema</label>
+          <div class="seg" id="settings-theme-seg"><button data-value="system" data-i="themeSystem">Sistema</button><button data-value="light" data-i="themeLight">Claro</button><button data-value="dark" data-i="themeDark">Oscuro</button></div>
+        </div>
+      </div>
     </div>
-    <div class="field">
-      <label for="settings-key">API key de Semantic Scholar (opcional)</label>
-      <input id="settings-key" type="text" placeholder="Sin ella, el modo 'similares' funciona con rate limit más bajo">
+    <div class="card panel">
+      <h3 data-i="library">Mi biblioteca</h3>
+      <label class="f" for="settings-library" data-i="libraryLink">Enlace de acceso remoto</label>
+      <div class="pathrow"><input id="settings-library" class="input" type="text" data-i-ph="libraryPh"><button id="settings-library-test-btn" class="btn ghost" data-i="test">Probar</button></div>
+      <p class="hint" data-i="libraryHint"></p>
     </div>
-    <div class="field">
-      <label for="settings-library">Enlace de tu biblioteca (opcional)</label>
-      <input id="settings-library" type="text" placeholder="p.ej. https://proxy.tu-uni.es/login?url=">
-      <p class="hint">Para abrir los papers a través de tu biblioteca, como si estuvieras en el campus. Cómo encontrarlo: entra desde casa a un artículo desde la web de tu biblioteca y mira la URL; si contiene <code>ezproxy</code>, <code>login?url=</code> u <code>openathens</code>, la parte de antes del enlace al artículo es lo que va aquí. Admite <code>{doi}</code> y <code>{url}</code>.</p>
-      <button id="settings-library-test-btn" class="secondary">Probar con un paper conocido</button>
+    <div class="card panel">
+      <h3 data-i="sources">Fuentes de datos</h3>
+      <label class="f" for="settings-email" data-i="email">Email de contacto</label>
+      <input id="settings-email" class="input" type="text" placeholder="tu@email.com">
+      <label class="f mt" for="settings-key" data-i="s2key">API key de Semantic Scholar</label>
+      <input id="settings-key" class="input" type="text" data-i-ph="s2keyPh">
     </div>
-    <p id="settings-saved" class="success hidden">Guardado.</p>
-    <div class="row">
-      <button id="settings-back-btn" class="secondary">Volver</button>
-      <button id="settings-save-btn" class="primary">Guardar</button>
+    <p id="settings-saved" class="success-text hidden"></p>
+    <div class="footer-actions">
+      <button id="settings-back-btn" class="btn ghost" data-i="back">← Volver</button>
+      <button id="settings-save-btn" class="btn primary" data-i="save">Guardar</button>
     </div>
   </section>
 
 </main>
 
+<script src="i18n.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

@@ -34,6 +34,20 @@ ACCESS_LABELS = {
     NONE: "sin acceso conocido",
 }
 
+ACCESS_LABELS_EN = {
+    OPEN: "open",
+    OPEN_BRONZE: "open (bronze)",
+    INSTITUTION: "institution (ticked publisher)",
+    UNKNOWN: "unchecked",
+    NONE: "no known access",
+}
+
+
+def access_label(status: str | None, lang: str = "es") -> str | None:
+    labels = ACCESS_LABELS_EN if lang == "en" else ACCESS_LABELS
+    return labels.get(status or "", None)
+
+
 MAX_TEMPLATE_LENGTH = 500
 TEST_DOI = "10.1038/nature14539"  # paper conocido para el boton "Probar"
 

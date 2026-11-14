@@ -228,11 +228,14 @@ def test_api_get_and_save_settings(tmp_path, monkeypatch):
     monkeypatch.delenv("CONTACT_EMAIL", raising=False)
     monkeypatch.delenv("SEMANTIC_SCHOLAR_API_KEY", raising=False)
     monkeypatch.delenv("LIBRARY_LINK_TEMPLATE", raising=False)
+    monkeypatch.delenv("UI_LANGUAGE", raising=False)
+    monkeypatch.delenv("UI_THEME", raising=False)
     monkeypatch.chdir(tmp_path)
 
     api = Api()
     assert api.get_settings() == {
-        "contact_email": "", "semantic_scholar_api_key": "", "library_link_template": ""
+        "contact_email": "", "semantic_scholar_api_key": "", "library_link_template": "",
+        "ui_language": "", "ui_theme": "system",
     }
 
     res = api.save_settings(
@@ -243,6 +246,8 @@ def test_api_get_and_save_settings(tmp_path, monkeypatch):
         "contact_email": "me@example.com",
         "semantic_scholar_api_key": "abc123",
         "library_link_template": "",
+        "ui_language": "",
+        "ui_theme": "system",
     }
     assert (tmp_path / ".env").exists()
 
@@ -482,3 +487,82 @@ def test_api_search_reports_rate_limit_as_error():
     assert res["status"] == "error"
     assert "unas 10 horas" in res["message"]
     assert api.get_progress()["status"] == "finished"
+
+
+# -- GUI v3: idioma, tema, codigos de error, carpeta de exportacion ---------------------
+
+
+@pytest.fixture
+def clean_ui_env(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    for key in ("UI_LANGUAGE", "UI_THEME"):
+        monkeypatch.delenv(key, raising=False)
+    yield
+    for key in ("UI_LANGUAGE", "UI_THEME"):
+        monkeypatch.delenv(key, raising=False)
+
+
+def test_save_settings_ui_language_and_theme(clean_ui_env):
+    api = Api()
+    assert api.save_settings({"UI_LANGUAGE": "en", "UI_THEME": "dark"})["status"] == "ok"
+    settings = api.get_settings()
+    assert settings["ui_language"] == "en" and settings["ui_theme"] == "dark"
+
+
+def test_save_settings_rejects_unknown_ui_values(clean_ui_env):
+    res = Api().save_settings({"UI_LANGUAGE": "klingon"})
+    assert res["status"] == "error" and res["code"] == "invalid_settings"
+    assert Api().save_settings({"UI_THEME": "neon"})["code"] == "invalid_settings"
+
+
+def test_errors_carry_codes():
+    api = Api()
+    assert api.search({})["code"] == "no_root"
+    assert api.confirm_candidate(3)["code"] == "invalid_selection"
+    assert api.open_link("javascript:x")["code"] == "invalid_link"
+    assert api.export("x.bib", "bibtex")["code"] == "nothing_to_export"
+    assert api.open_export_folder()["code"] == "no_export_folder"
+
+
+def test_rate_limited_error_has_code_and_wait():
+    from bib_expres.sources.base import RateLimitedError
+
+    root = _paper()
+
+    class _Limited(_FakeOpenAlex):
+        def get_references(self, paper, generation):
+            raise RateLimitedError("api.openalex.org", 7200)
+
+    api = Api(openalex_client=_Limited(resolve_result=root), crossref_client=_FakeCrossref())
+    api.resolve("10.1/abc")
+    res = api.search({"generations": "1", "max_articles": "5", "modes": ["references"]})
+    assert res["code"] == "rate_limited"
+    assert res["wait_seconds"] == 7200 and res["source"] == "api.openalex.org"
+
+
+def test_export_english_excel_and_open_folder(tmp_path, monkeypatch):
+    from openpyxl import load_workbook
+
+    root = _paper()
+    api = Api(openalex_client=_FakeOpenAlex(resolve_result=root), crossref_client=_FakeCrossref())
+    api.resolve("10.1/abc")
+    api.search({"generations": "1", "max_articles": "5", "modes": ["references"]})
+    out = tmp_path / "review.xlsx"
+    res = api.export(str(out), "xlsx", [], "en")
+    assert res["status"] == "ok" and res["name"] == "review.xlsx"
+    assert load_workbook(out).active["A1"].value == "Title"
+
+    opened = []
+    monkeypatch.setattr("bib_expres.gui.app.os.startfile", opened.append, raising=False)
+    monkeypatch.setattr("bib_expres.gui.app.sys.platform", "win32")
+    assert api.open_export_folder()["status"] == "ok"
+    assert opened == [str(tmp_path)]
+
+
+def test_paper_dict_carries_breakdown_and_english_label():
+    bd = {"tema": 0.5, "citas": 0.1, "recencia": 0.2, "relevancia": 0.4, "conexiones": 1,
+          "palabras_clave": [], "final": 0.5}
+    paper = _paper(access_status="open", score_breakdown=bd)
+    d = _paper_to_dict(paper)
+    assert d["score_breakdown"] == bd
+    assert d["access_label_en"] == "open"
