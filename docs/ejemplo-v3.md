@@ -79,7 +79,7 @@ Exactamente la misma cifra que con la caché del día anterior: el resultado es 
 | v2.3.0 | 36,1 s | 36 |
 | v3 | 55,2 s | 74 |
 
-**v3 tarda 1,53 veces lo de v2.3**, justo por encima del límite de 1,5× que se fijó en el diseño. El tiempo va casi en proporción a las peticiones: v3 expande 21 papers en lugar de unos 10, porque explora todo antes de elegir. Es lo que compra el salto del 9,9 % al 24 % de recall. Las mediciones son de una sola ejecución con la red de ese momento, y OpenAlex varía bastante de un día a otro (la misma búsqueda de v2.3 ha tardado entre 27 y 39 s otros días).
+**v3 tarda 1,53 veces lo de v2.3**, justo por encima del límite de 1,5× que se fijó en el diseño. **Decisión: se acepta** como coste de la mejora (unos 20 s más por búsqueda a cambio de 2,4 veces más bibliografía relevante encontrada), sin tocar la exploración por defecto. El tiempo va casi en proporción a las peticiones: v3 expande 21 papers en lugar de unos 10, porque explora todo antes de elegir. Es lo que compra el salto del 9,9 % al 24 % de recall. Las mediciones son de una sola ejecución con la red de ese momento, y OpenAlex varía bastante de un día a otro (la misma búsqueda de v2.3 ha tardado entre 27 y 39 s otros días).
 
 ## Límite de OpenAlex: 1.000 peticiones al día
 
