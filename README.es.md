@@ -17,23 +17,23 @@
 
 ## Qué hace
 
-Le das **un paper** (DOI, arXiv, título o el propio PDF) y bib_exprés hace *snowballing* por ti. Sigue sus referencias, los papers que lo citan y los artículos similares, generación tras generación, puntúa cada candidato con una fórmula de relevancia **sencilla y a la vista**, y te entrega una bibliografía lista para Zotero, LaTeX o Excel.
+Le das **un paper** (DOI, arXiv, título o el propio PDF) y bib_exprés hace el *snowballing* por ti. Sigue sus referencias, los papers que lo citan y los artículos similares, guarda todo lo que ve y elige los mejores con un score que se puede leer: **cuánto se parece el tema, cuántos papers de tu búsqueda apuntan a él y qué palabras clave comparte con el tuyo**. Te entrega una bibliografía lista para Zotero, LaTeX o Excel, y cada entrada puede decirte por qué está ahí.
 
 ```
 paper de entrada
-  -> resolución (CrossRef + OpenAlex)          -> paper raíz
-  -> expansión (cola por prioridad)
+  -> resolución (CrossRef + OpenAlex)                  -> paper raíz
+  -> exploración (los mejores primero, hasta 21 papers por defecto)
        -> OpenAlex: referencias + citas
        -> Semantic Scholar: artículos similares (opcional)
-       -> puntuación de relevancia + deduplicación de cada candidato
-     ... hasta agotar generaciones, el tope de artículos o el grafo
+       -> se guarda cada candidato visto, con cuántos papers explorados lo enlazan
+  -> selección: relevancia + conexiones + palabras clave -> los N mejores, y luego los filtros
   -> curación opcional (guardar / descartar uno a uno)
   -> exportación -> .bib / .ris / .json / .xlsx
 ```
 
 ## Rendimiento
 
-**200 artículos en ~22 segundos**, partiendo de *Attention Is All You Need* con los parámetros por defecto (2 generaciones, referencias + citas). Es una ejecución real, no una estimación: [ver el ejemplo completo](docs/ejemplo.md). El tiempo depende sobre todo de lo rápido que responda OpenAlex ese día: la misma búsqueda, repetida en noviembre de 2026 con la caché vacía, tardó entre 27 y 39 s.
+**2,4 veces más de la bibliografía que importa, en un minuto.** Medido contra la bibliografía de tres revisiones publicadas (machine learning, biología molecular y física), bib_exprés v3 encuentra de media el **24 %** de lo que cita cada revisión entre sus 200 primeros resultados, frente al 9,9 % de v2, y el 50 % en el caso de CRISPR. Una búsqueda por defecto desde *Attention Is All You Need* devuelve 200 artículos de 1.379 candidatos en **~55 s con la caché vacía**, casi todo esperando a OpenAlex, y en un par de segundos si ya está en caché. [Validación completa de v3](docs/ejemplo-v3.md) · banco de pruebas en `benchmarks/`.
 
 ## Descarga y uso
 
@@ -49,7 +49,7 @@ Windows puede avisar la primera vez porque el `.exe` no está firmado ("Más inf
 pip install -e ".[dev]"
 ```
 
-Interfaz gráfica:
+Interfaz gráfica (en español o inglés):
 
 ```bash
 bib-expres-gui
@@ -59,24 +59,27 @@ Línea de comandos:
 
 ```bash
 bib-expres --doi 10.1000/ejemplo --output bibliografia.bib
-bib-expres --input "Attention Is All You Need" --output revision.xlsx
+bib-expres --input "Attention Is All You Need" --explain --output revision.xlsx
 ```
 
-Guías completas: [instalación y `.env`](docs/instalacion.md) · [todos los parámetros](docs/uso.md).
+Guías completas: [instalación y `.env`](docs/instalacion.md) · [todos los parámetros](docs/uso.md) · [acceso institucional](docs/acceso-institucional.md).
 
 ## Funcionalidades
 
-- **Entrada**: DOI, ID o URL de arXiv, título en texto libre (eliges entre los candidatos) o un PDF.
-- **Expansión configurable**: generaciones, tope total, tope por artículo, modos (referencias / citas / similares) y pesos de relevancia. Nada queda fijo en el código.
-- **Filtros**: tipo de documento y acceso abierto.
-- **Curación tipo Tinder**: revisa cada candidato con su abstract y decide guardar o descartar con botones, flechas o arrastrando.
-- **Progreso en directo**: barra, paper que se está explorando, "última actividad hace X s" y botón para cancelar quedándote con lo encontrado.
-- **Salida**: BibTeX, RIS, CSL-JSON y **Excel** para revisiones bibliográficas (título, autores, DOI enlazado, tema, palabras clave, relevancia y una columna libre para notas).
+- **Entrada**: DOI, ID o URL de arXiv, título en texto libre (eliges entre los candidatos) o un PDF, que basta con soltar en la ventana.
+- **Un algoritmo explicable**: cada resultado enseña el desglose de su score ("¿Por qué?" en la app, `--explain` en la CLI, columna *Por qué* en el Excel). Pesos, generaciones, topes y presupuesto de exploración, todo configurable.
+- **Filtros**: tipo de documento, acceso abierto e **idioma**, al estilo Google Scholar (el del paper de partida, o cualquiera). Los filtros eligen qué ves sin cortar la búsqueda.
+- **Acceso institucional**: abrir la versión libre o ir **a través del proxy de tu biblioteca**, marcar las editoriales que cubre tu institución y ocultar lo que no puedes leer.
+- **Curación tipo Tinder**: revisa cada candidato con su abstract y decide guardar o descartar con botones, flechas o arrastrando, con deshacer.
+- **Progreso en directo**: papers explorados, candidatos vistos, "última actividad hace X s" y un botón para cancelar quedándote con lo encontrado.
+- **Cuota diaria a la vista**: cuántas búsquedas permite todavía hoy la cuota gratuita de OpenAlex, y cuándo se reinicia.
+- **Salida**: BibTeX, RIS, CSL-JSON y **Excel** para revisiones bibliográficas (título, autores, DOI enlazado, tema, palabras clave, relevancia, por qué, acceso y una columna libre para notas).
+- **App de escritorio en español e inglés**, en claro u oscuro.
 
 ## Fuentes de datos
 
-- **OpenAlex** (primaria): referencias, citas, temas y palabras clave. Sin API key.
-- **Semantic Scholar** (complemento): artículos similares. Requiere API key gratuita.
+- **OpenAlex** (primaria): referencias, citas, temas, palabras clave, editoriales y enlaces de acceso abierto. Sin API key; unas 1.000 peticiones gratis al día, unas 13 búsquedas nuevas (las repetidas salen de la caché local).
+- **Semantic Scholar** (complemento): artículos similares. Funciona mejor con una API key gratuita.
 - **CrossRef**: resolución y verificación de DOI.
 
 ## Trabajos relacionados
@@ -93,25 +96,26 @@ La diferencia de bib_exprés: es una herramienta de línea de comandos, librerí
 ## Limitaciones
 
 - Solo encuentra lo que **OpenAlex, Semantic Scholar o CrossRef** tengan indexado. Los papers muy nuevos, muy de nicho o fuera de esas bases no van a aparecer.
-- La bibliografía es siempre un **subconjunto acotado** (por generaciones y tope de artículos), no "todo lo relacionado". Es una decisión consciente (rendimiento y respeto a las APIs), no un descuido.
-- El modo "similares" depende de tener configurada una API key de Semantic Scholar. Sin ella, la expansión se queda solo con el grafo de citas de OpenAlex.
-- El score de relevancia es una **fórmula simple y transparente**, no un modelo de lenguaje ni *embeddings*. Prioriza poder explicar por qué algo entra o no, a costa de ser menos sofisticado que un enfoque de ML.
+- La bibliografía es siempre un **subconjunto acotado** (por generaciones, presupuesto de exploración y tope de artículos), no "todo lo relacionado". Las revisiones muy amplias de campos antiguos se cubren peor: en el banco de pruebas, la del grafeno (455 referencias, muchas de teoría anteriores al paper de partida) se queda en ~5 %.
+- **La cuota gratuita de OpenAlex** da para unas 13 búsquedas nuevas al día. La app enseña cuántas quedan y, si se agota, dice cuánto esperar en vez de quedarse colgada.
+- El modo "similares" funciona mejor con una API key de Semantic Scholar.
+- El score es una **fórmula simple y transparente** (tema, citas, recencia, conexiones, palabras clave), no un modelo de lenguaje ni *embeddings*. Prioriza poder explicar cada resultado frente a la sofisticación de un enfoque de ML.
+- **El acceso institucional es aproximado**: no existe una fuente pública de lo que paga de verdad tu biblioteca, así que se apoya en los datos de acceso abierto y en las editoriales que marques. Un contrato no siempre cubre todas las revistas ni todos los años.
+- El **filtro de idioma** depende del idioma que detecta OpenAlex, que a veces se equivoca, y solo puede quedarse con papers que estén a su alcance: desde *Attention Is All You Need* no hay ningún paper en español entre los 1.379 candidatos.
 - El `.exe` no está firmado. Windows puede mostrar un aviso de SmartScreen la primera vez, y el antivirus puede bloquearlo brevemente nada más construirlo.
-- Buscar el paper padre por ID de arXiv falla si ese paper se publicó después en otro sitio con su propio DOI (le pasa a bastantes papers de ML conocidos). Buscarlo por título no tiene este problema. Detalle en [docs/ejemplo-v2.md](docs/ejemplo-v2.md).
-- El paper padre nunca se descarta por los filtros de tipo de documento o acceso abierto, ni por relevancia: siempre aparece en el resultado final.
+- Buscar el paper padre por ID de arXiv falla si ese paper se publicó después en otro sitio con su propio DOI (le pasa a bastantes papers de ML conocidos). Buscarlo por título no tiene este problema.
+- El paper padre nunca se descarta por ningún filtro ni por relevancia: siempre aparece en el resultado final.
 
 ## Hoja de ruta
 
-**v3**, ya planificada:
+Ideas, todavía sin planificar:
 
-- **Algoritmo mejorado y explicable**: temas de OpenAlex, conexión con los papers ya aceptados y parecido de texto, con el desglose del score visible por artículo. Se medirá contra un banco de pruebas con revisiones reales antes de cambiar nada.
-- **Acceso institucional**: enlaces a través del proxy de tu biblioteca y filtro "solo accesibles para mí".
-- **Filtro por idioma**, al estilo Google Scholar: en el idioma de la búsqueda o en cualquiera.
-- **GUI rediseñada**, con el logo y en inglés o español, a elegir.
+- **Listados de revistas de la biblioteca (KBART)**: saber exactamente qué cubre tu biblioteca por revista y año, si las bibliotecas lo ofrecen.
+- **Volver a probar los *topics* de OpenAlex** en lugar de los *concepts* cuando mejore su cobertura (hoy bajan el recall en uno de los tres casos del banco de pruebas).
+- **Más casos en el banco de pruebas**, de otros campos, para ajustar los valores por defecto con más de tres revisiones.
 
 Preguntas abiertas:
 
-- Los valores por defecto (`max_articles=200`, `max_fanout_per_node=20`, pesos de relevancia) son un punto de partida razonable, no un número validado. El banco de pruebas de v3 servirá para ajustarlos.
 - Si compensa firmar el `.exe` (certificado de firma de código) para que Windows deje de avisar.
 - Si la parte de librería/CLI se distribuye por PyPI o solo desde GitHub.
 

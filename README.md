@@ -17,23 +17,23 @@
 
 ## What it does
 
-Give it **one paper** (a DOI, an arXiv ID, a title or the PDF itself) and bib_exprés does the *snowballing* for you. It follows the paper's references, the papers that cite it and similar articles, generation after generation, scores every candidate with a **simple, visible** relevance formula, and hands you a bibliography ready for Zotero, LaTeX or Excel.
+Give it **one paper** (a DOI, an arXiv ID, a title or the PDF itself) and bib_exprés does the *snowballing* for you. It follows the paper's references, the papers that cite it and similar articles, keeps everything it sees, and picks the best ones with a score you can read: **how close the topic is, how many papers in your search point to it, and which keywords it shares with yours**. You get a bibliography ready for Zotero, LaTeX or Excel, and every entry can tell you why it is there.
 
 ```
 input paper
-  -> resolution (CrossRef + OpenAlex)          -> root paper
-  -> expansion (priority queue)
+  -> resolution (CrossRef + OpenAlex)                  -> root paper
+  -> exploration (best first, up to 21 papers by default)
        -> OpenAlex: references + citations
        -> Semantic Scholar: similar articles (optional)
-       -> relevance score + deduplication for every candidate
-     ... until generations, the article cap or the graph run out
+       -> every candidate seen is kept, with how many explored papers link to it
+  -> selection: relevance + connections + shared keywords -> the top N, then the filters
   -> optional curation (keep / discard one by one)
   -> export -> .bib / .ris / .json / .xlsx
 ```
 
 ## Performance
 
-**200 articles in ~22 seconds**, starting from *Attention Is All You Need* with the default settings (2 generations, references + citations). That is a real run, not an estimate: [see the full example](docs/ejemplo.md) (in Spanish). The time depends mostly on how fast OpenAlex answers that day: the same search, repeated in November 2026 with an empty cache, took 27–39 s.
+**2.4× more of the literature that matters, in about a minute.** Measured against the bibliographies of three published reviews (machine learning, molecular biology, physics), bib_exprés v3 finds on average **24 %** of what each review cites among its top 200 results, against 9.9 % in v2; 50 % in the CRISPR case. A default search from *Attention Is All You Need* returns 200 articles out of 1,379 candidates in **~55 s with an empty cache**, mostly waiting for OpenAlex, and in a couple of seconds once it is cached. [Full v3 validation](docs/ejemplo-v3.md) (in Spanish) · benchmark in `benchmarks/`.
 
 ## Download and use
 
@@ -49,7 +49,7 @@ Windows may warn you the first time because the `.exe` is not signed ("More info
 pip install -e ".[dev]"
 ```
 
-Desktop app:
+Desktop app (English or Spanish):
 
 ```bash
 bib-expres-gui
@@ -59,26 +59,27 @@ Command line:
 
 ```bash
 bib-expres --doi 10.1000/example --output bibliography.bib
-bib-expres --input "Attention Is All You Need" --output review.xlsx
+bib-expres --input "Attention Is All You Need" --explain --output review.xlsx
 ```
 
-Full guides (in Spanish): [installation and `.env`](docs/instalacion.md) · [every parameter](docs/uso.md).
-
-> The app's interface and the detailed docs are in Spanish for now; an English interface is planned for v3.
+Full guides: [installation and `.env`](docs/en/installation.md) · [every parameter](docs/en/usage.md) · [institutional access](docs/en/institutional-access.md).
 
 ## Features
 
-- **Input**: DOI, arXiv ID or URL, free-text title (you pick among the candidates) or a PDF.
-- **Configurable expansion**: generations, total cap, per-article cap, modes (references / citations / similar) and relevance weights. Nothing is hard-coded.
-- **Filters**: document type and open access.
-- **Tinder-style curation**: review each candidate with its abstract and keep or discard it with buttons, arrow keys or by dragging.
-- **Live progress**: a progress bar, the paper being explored, "last activity X s ago" and a button to cancel while keeping what was found so far.
-- **Output**: BibTeX, RIS, CSL-JSON and **Excel** for literature reviews (title, authors, linked DOI, topic, keywords, relevance and a free column for notes).
+- **Input**: DOI, arXiv ID or URL, free-text title (you pick among the candidates), or a PDF, which you can simply drop on the window.
+- **An explainable algorithm**: every result shows its score breakdown ("Why?" in the app, `--explain` in the CLI, a *Why* column in Excel). Weights, generations, caps and the exploration budget are all configurable.
+- **Filters**: document type, open access and **language**, Google Scholar style (the starting paper's language, or any). Filters choose what you see without cutting the search short.
+- **Institutional access**: open the free version or go **through your library's proxy**, tick the publishers your institution covers, and hide what you can't read.
+- **Tinder-style curation**: review each candidate with its abstract and keep or discard it with buttons, arrow keys or by dragging, with undo.
+- **Live progress**: papers explored, candidates seen, "last activity X s ago" and a cancel button that keeps what was found so far.
+- **Daily quota at a glance**: how many searches OpenAlex's free quota still allows today, and when it resets.
+- **Output**: BibTeX, RIS, CSL-JSON and **Excel** for literature reviews (title, authors, linked DOI, topic, keywords, relevance, why, access and a free column for notes).
+- **A desktop app in English and Spanish**, light or dark.
 
 ## Data sources
 
-- **OpenAlex** (primary): references, citations, topics and keywords. No API key.
-- **Semantic Scholar** (complement): similar articles. Needs a free API key.
+- **OpenAlex** (primary): references, citations, topics, keywords, publishers and open-access links. No API key; about 1,000 free requests a day, roughly 13 new searches (repeated ones come from the local cache).
+- **Semantic Scholar** (complement): similar articles. Works best with a free API key.
 - **CrossRef**: DOI resolution and verification.
 
 ## Related work
@@ -95,25 +96,26 @@ What makes bib_exprés different: it is a command-line tool, library and desktop
 ## Limitations
 
 - It only finds what **OpenAlex, Semantic Scholar or CrossRef** have indexed. Very new, very niche or non-indexed papers will not show up.
-- The bibliography is always a **bounded subset** (by generations and article cap), not "everything related". That is a deliberate choice (performance and fair use of the APIs), not an oversight.
-- "Similar" mode needs a Semantic Scholar API key. Without one, expansion only uses the OpenAlex citation graph.
-- The relevance score is a **simple, transparent formula**, not a language model or embeddings. It favours being able to explain why something is in or out over the sophistication of an ML approach.
+- The bibliography is always a **bounded subset** (by generations, exploration budget and article cap), not "everything related". Very broad reviews of older fields are covered worse: in the benchmark, the graphene review (455 references, many of them theory papers older than the starting paper) stays at ~5 %.
+- **OpenAlex's free quota** allows about 13 new searches a day. The app shows how many are left and, when it runs out, says how long to wait instead of hanging.
+- "Similar" mode works best with a Semantic Scholar API key.
+- The score is a **simple, transparent formula** (topic, citations, recency, connections, keywords), not a language model or embeddings. It favours being able to explain every result over the sophistication of an ML approach.
+- **Institutional access is approximate**: there is no public source of what your library actually pays for, so it relies on open-access data and the publishers you tick. A contract doesn't always cover every journal or year.
+- The **language filter** depends on the language OpenAlex detects, which is sometimes wrong, and it can only keep papers that exist within reach: from *Attention Is All You Need* there are no Spanish papers among the 1,379 candidates.
 - The `.exe` is not signed. Windows may show a SmartScreen warning the first time, and antivirus software may briefly block it right after building.
-- Looking up the root paper by arXiv ID fails if the paper was later published elsewhere under its own DOI (common for well-known ML papers). Searching by title does not have this problem. Details in [docs/ejemplo-v2.md](docs/ejemplo-v2.md) (in Spanish).
-- The root paper is never dropped by the document-type or open-access filters, nor by relevance: it always appears in the final result.
+- Looking up the root paper by arXiv ID fails if the paper was later published elsewhere under its own DOI (common for well-known ML papers). Searching by title does not have this problem.
+- The root paper is never dropped by any filter or by relevance: it always appears in the final result.
 
 ## Roadmap
 
-**v3**, already planned:
+Ideas, not yet planned:
 
-- **A better, explainable algorithm**: OpenAlex topics, links to the papers already accepted and text similarity, with the score breakdown visible for every article. It will be measured against a benchmark of real literature reviews before anything changes.
-- **Institutional access**: links through your library's proxy and an "only what I can access" filter.
-- **Language filter**, Google Scholar style: in the search language or in any language.
-- **A redesigned GUI**, with the logo, in English or Spanish.
+- **Library holdings files (KBART)**: an exact "what my library covers" list per journal and year, if libraries make it available.
+- **Re-check OpenAlex topics** as a replacement for the older concepts once their coverage improves (today they lower recall in one of the three benchmark cases).
+- **More benchmark cases** from other fields, to tune the defaults with more than three reviews.
 
 Open questions:
 
-- The defaults (`max_articles=200`, `max_fanout_per_node=20`, relevance weights) are a reasonable starting point, not a validated number. The v3 benchmark will be used to tune them.
 - Whether signing the `.exe` (code-signing certificate) is worth it so Windows stops warning.
 - Whether the library/CLI part ships on PyPI or only from GitHub.
 

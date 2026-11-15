@@ -1,5 +1,7 @@
 # Acceso a los papers: abierto, biblioteca y "solo lo que puedo leer"
 
+> [English version](en/institutional-access.md)
+
 bib_exprés no puede saber con certeza a qué tiene acceso tu institución: esa información vive en los sistemas de cada biblioteca, detrás de su login. Lo que sí hace es combinar tres cosas que se pueden saber:
 
 1. **Si el paper es de acceso abierto**, según OpenAlex, y el enlace a esa versión libre.
@@ -22,7 +24,7 @@ Aparece en la pantalla de resultados y en las columnas **Acceso** y **Enlace de 
 
 ## 1. El enlace de tu biblioteca
 
-En la GUI: **Ajustes → Enlace de tu biblioteca**. En la CLI: `--library-link`, o `LIBRARY_LINK_TEMPLATE` en el `.env`.
+En la GUI: **Ajustes → Mi biblioteca → Enlace de acceso remoto**. En la CLI: `--library-link`, o `LIBRARY_LINK_TEMPLATE` en el `.env`.
 
 ### Cómo encontrarlo
 
@@ -38,11 +40,11 @@ En la GUI: **Ajustes → Enlace de tu biblioteca**. En la CLI: `--library-link`,
 - **Prefijo** (EZproxy, OpenAthens): bib_exprés le añade el enlace `https://doi.org/...` del paper.
 - **Con `{doi}` o `{url}`** (resolvedores OpenURL, p.ej. Alma/Primo o SFX): se sustituyen por el DOI o por el enlace de doi.org. Ejemplo: `https://resolver.tu-uni.es/openurl?rft_id=info:doi/{doi}`
 
-Solo se aceptan enlaces `https://`. El botón **"Probar con un paper conocido"** abre un artículo de *Nature* a través de tu enlace: si después del login ves el artículo completo, está bien configurado.
+Solo se aceptan enlaces `https://`. El botón **"Probar"** abre un artículo de *Nature* a través de tu enlace: si después del login ves el artículo completo, está bien configurado.
 
 ## 2. Las editoriales de tu institución
 
-En la pantalla de resultados, el panel **"Mi institución: qué puedo leer"** muestra las editoriales que aparecen en tu búsqueda, con cuántos artículos tiene cada una. Marca las que cubre tu institución y pulsa **"Guardar mis editoriales"**: se recuerdan para las siguientes búsquedas (`SUBSCRIBED_PUBLISHERS` en el `.env`). En la CLI: `--publishers "Elsevier BV;Springer Nature"`.
+En la pantalla de resultados, el panel **"Mi institución"** (a la derecha, o encima de la lista si la ventana es estrecha) muestra las editoriales que aparecen en tu búsqueda, con cuántos artículos tiene cada una. Marca las que cubre tu institución y pulsa **"Guardar"**: se recuerdan para las siguientes búsquedas (`SUBSCRIBED_PUBLISHERS` en el `.env`). En la CLI: `--publishers "Elsevier BV;Springer Nature"`.
 
 Si no sabes cuáles cubre tu universidad, la web de la biblioteca suele tener una lista de "recursos suscritos", "bases de datos" o "revistas electrónicas" por editorial.
 
@@ -50,8 +52,8 @@ Si no sabes cuáles cubre tu universidad, la web de la biblioteca suele tener un
 
 ## 3. "Ocultar lo que no puedo leer"
 
-- Casilla en el mismo panel, o `--accessible-only` en la CLI. Oculta los artículos **sin acceso conocido**.
-- Los **no comprobados** se mantienen, porque un dato que falta no es motivo para excluir. Para ocultarlos también: la segunda casilla, o `--strict-access`.
+- Casilla **"Ocultar lo que no puedo leer"** en la barra de los resultados (o *"Solo lo que puedo leer"* ya en los parámetros), o `--accessible-only` en la CLI. Oculta los artículos **sin acceso conocido**.
+- Los **no comprobados** se mantienen, porque un dato que falta no es motivo para excluir. Para ocultarlos también: la casilla *"…y lo que no se puede comprobar"*, o `--strict-access`.
 - El filtro se aplica **sobre los resultados**, no durante la búsqueda: que no puedas leer un paper no lo hace menos relevante, ni impide llegar a otros que sí puedes leer.
 - El paper de partida nunca se oculta.
 - Lo oculto no se exporta ni aparece en la curación.
