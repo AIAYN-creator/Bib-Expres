@@ -58,7 +58,7 @@ Mind OpenAlex's free quota (about 1,000 requests a day): a full run with an empt
 
 ## Reporting a security issue
 
-Please don't describe a vulnerability in a public issue. Open an issue titled **"Security contact"** with no details, and the maintainer will get in touch privately.
+Please don't describe a vulnerability in a public issue. Report it privately through GitHub instead: **[Report a vulnerability](https://github.com/AIAYN-creator/Bib-Expres/security/advisories/new)** (also under the repository's *Security* tab). Only the maintainer sees it.
 
 ## Licence
 
