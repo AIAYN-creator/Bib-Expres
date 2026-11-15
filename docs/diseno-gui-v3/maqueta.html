@@ -1,0 +1,511 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>bib_exprés · maqueta GUI v3</title>
+<style>
+/* ===== Tokens (salen del logo: azul #2563eb y nodos blancos) ===== */
+:root {
+  --brand: #2459e0;
+  --brand-strong: #1c45b8;
+  --brand-soft: #eaf0ff;
+  --brand-ink: #173a9c;
+  --bg: #f6f7fb;
+  --surface: #ffffff;
+  --surface-2: #f1f3f8;
+  --line: #e2e6ef;
+  --ink: #141824;
+  --ink-2: #4a5268;
+  --ink-3: #7a8297;
+  --ok: #16794a;   --ok-soft: #e3f6ec;
+  --warn: #9a5b00; --warn-soft: #fff3dc;
+  --bad: #b42335;  --bad-soft: #fde8eb;
+  --violet: #5b3fc4; --violet-soft: #efeaff;
+  --radius: 12px;
+  --shadow: 0 1px 2px rgba(20,24,36,.06), 0 4px 16px rgba(20,24,36,.06);
+  --font: "Segoe UI Variable Text", "Segoe UI", -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --font-display: "Segoe UI Variable Display", "Segoe UI", -apple-system, "Helvetica Neue", Arial, sans-serif;
+}
+:root[data-theme="dark"] {
+  --brand: #5b8bff; --brand-strong: #7aa1ff; --brand-soft: #1b2a52; --brand-ink: #c9d7ff;
+  --bg: #0f121a; --surface: #171b26; --surface-2: #1e2331; --line: #2a3142;
+  --ink: #e9ecf4; --ink-2: #b4bbcd; --ink-3: #8189a0;
+  --ok: #5fd39a; --ok-soft: #13352a; --warn: #f2b45c; --warn-soft: #3a2c12;
+  --bad: #ff7a8a; --bad-soft: #3d1a22; --violet: #b3a1ff; --violet-soft: #2a2247;
+  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 6px 20px rgba(0,0,0,.35);
+}
+* { box-sizing: border-box; }
+body { margin: 0; font-family: var(--font); background: #dfe3ec; color: var(--ink); }
+:root[data-theme="dark"] body { background: #05070b; }
+
+/* ===== Controles de la maqueta (fuera de la "ventana") ===== */
+.demo-bar { max-width: 1000px; margin: 20px auto 12px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 0 16px; }
+.demo-bar strong { margin-right: 8px; font-size: 13px; color: #3a4256; }
+:root[data-theme="dark"] .demo-bar strong { color: #aab2c6; }
+.demo-bar button { font: 12px var(--font); border: 1px solid #c4cbda; background: #fff; border-radius: 999px; padding: 5px 11px; cursor: pointer; color: #2a3142; }
+.demo-bar button.on { background: #1c45b8; color: #fff; border-color: #1c45b8; }
+.demo-bar .sep { width: 1px; height: 20px; background: #c4cbda; margin: 0 6px; }
+
+/* ===== La ventana: 960 x 720, el tamaño por defecto de la app ===== */
+.window { width: 960px; height: 720px; margin: 0 auto 40px; background: var(--bg); border-radius: 10px; box-shadow: 0 20px 60px rgba(10,20,50,.25); overflow: hidden; display: flex; flex-direction: column; border: 1px solid #b9c1d2; }
+.titlebar { height: 30px; background: var(--surface); border-bottom: 1px solid var(--line); display: flex; align-items: center; padding: 0 10px; gap: 8px; font-size: 12px; color: var(--ink-3); }
+.titlebar img { width: 16px; height: 16px; border-radius: 4px; }
+.titlebar .ctl { margin-left: auto; display: flex; gap: 18px; letter-spacing: 2px; }
+
+/* ===== Cabecera de la app ===== */
+.appbar { height: 60px; background: var(--surface); border-bottom: 1px solid var(--line); display: flex; align-items: center; padding: 0 20px; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; font-family: var(--font-display); font-weight: 650; font-size: 18px; letter-spacing: -.2px; }
+.brand img { width: 30px; height: 30px; border-radius: 8px; }
+.steps { display: flex; gap: 4px; margin-left: 18px; }
+.step { display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--ink-3); padding: 6px 10px; border-radius: 999px; }
+.step .n { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; font-weight: 600; background: var(--surface-2); color: var(--ink-3); border: 1px solid var(--line); }
+.step.done { color: var(--ink-2); }
+.step.done .n { background: var(--brand-soft); color: var(--brand); border-color: transparent; }
+.step.now { color: var(--brand-ink); background: var(--brand-soft); font-weight: 600; }
+.step.now .n { background: var(--brand); color: #fff; border-color: transparent; }
+.appbar .right { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+.lang { display: flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.lang button { border: 0; background: transparent; font: 600 12px var(--font); color: var(--ink-3); padding: 6px 9px; cursor: pointer; }
+.lang button.on { background: var(--brand-soft); color: var(--brand-ink); }
+.iconbtn { border: 1px solid var(--line); background: var(--surface); color: var(--ink-2); border-radius: 8px; height: 30px; padding: 0 10px; font: 13px var(--font); display: flex; align-items: center; gap: 6px; cursor: pointer; }
+
+/* ===== Contenido ===== */
+.main { flex: 1; overflow: auto; padding: 22px 28px; }
+.screen { display: none; }
+.screen.on { display: block; }
+h1 { font-family: var(--font-display); font-size: 22px; font-weight: 650; letter-spacing: -.3px; margin: 0 0 4px; }
+.sub { color: var(--ink-2); font-size: 14px; margin: 0 0 18px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
+.btn { font: 600 14px var(--font); border-radius: 9px; padding: 9px 16px; border: 1px solid transparent; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; flex: none; }
+.btn.primary { background: var(--brand); color: #fff; }
+.btn.primary:hover { background: var(--brand-strong); }
+.btn.ghost { background: var(--surface); color: var(--ink); border-color: var(--line); }
+.btn.small { font-size: 12px; padding: 5px 10px; border-radius: 7px; }
+.btn.text { background: none; color: var(--brand); padding: 5px 4px; }
+.kbd { font: 11px var(--font); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: 1px 6px; color: var(--ink-2); background: var(--surface); }
+label.f { display: block; font-size: 12.5px; font-weight: 600; color: var(--ink-2); margin: 0 0 6px; }
+.input { width: 100%; font: 14px var(--font); padding: 10px 12px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); color: var(--ink); }
+.input:focus { outline: 2px solid var(--brand); outline-offset: -1px; border-color: transparent; }
+.hint { font-size: 12px; color: var(--ink-3); margin-top: 6px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--ink-2); }
+.chip.on { background: var(--brand-soft); color: var(--brand-ink); border-color: transparent; font-weight: 600; }
+.badge { font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 999px; white-space: nowrap; }
+.b-open { background: var(--ok-soft); color: var(--ok); }
+.b-inst { background: var(--violet-soft); color: var(--violet); }
+.b-none { background: var(--bad-soft); color: var(--bad); }
+.b-unk { background: var(--surface-2); color: var(--ink-3); }
+
+/* --- 1. Inicio --- */
+.hero { max-width: 620px; margin: 38px auto 0; text-align: center; }
+.hero img { width: 76px; height: 76px; border-radius: 20px; box-shadow: 0 10px 30px rgba(36,89,224,.35); }
+.hero h1 { font-size: 30px; margin-top: 16px; }
+.hero .slogan { color: var(--ink-2); font-size: 16px; margin: 6px 0 26px; }
+.searchbox { display: flex; gap: 8px; padding: 8px; }
+.searchbox .input { border: 0; font-size: 15px; }
+.searchbox .input:focus { outline: none; }
+.or { color: var(--ink-3); font-size: 12px; margin: 14px 0; }
+.drop { border: 1.5px dashed var(--line); border-radius: var(--radius); padding: 16px; color: var(--ink-2); font-size: 13px; }
+.examples { margin-top: 22px; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+
+/* --- 2. Parametros --- */
+.rootpaper { display: flex; gap: 14px; align-items: center; padding: 14px 16px; margin-bottom: 16px; }
+.rootpaper .ok { width: 34px; height: 34px; border-radius: 50%; background: var(--ok-soft); color: var(--ok); display: grid; place-items: center; font-weight: 700; flex: none; }
+.rootpaper .t { font-weight: 600; }
+.rootpaper .m { font-size: 12.5px; color: var(--ink-3); }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.panel { padding: 16px 18px; }
+.panel h3 { margin: 0 0 12px; font-size: 14px; }
+.row { display: flex; gap: 10px; align-items: center; }
+.seg { display: flex; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
+.seg span { flex: 1; text-align: center; font-size: 13px; padding: 8px 6px; color: var(--ink-2); border-right: 1px solid var(--line); }
+.seg span:last-child { border-right: 0; }
+.seg span.on { background: var(--brand-soft); color: var(--brand-ink); font-weight: 600; }
+.slider { height: 6px; background: var(--surface-2); border-radius: 3px; position: relative; margin: 14px 0 6px; }
+.slider i { position: absolute; inset: 0 auto 0 0; background: var(--brand); border-radius: 3px; }
+.slider b { position: absolute; top: -6px; width: 18px; height: 18px; border-radius: 50%; background: #fff; border: 2px solid var(--brand); }
+.check { display: flex; gap: 8px; align-items: center; font-size: 13.5px; margin: 8px 0; color: var(--ink); }
+.check .box { width: 16px; height: 16px; border-radius: 4px; border: 1.5px solid var(--ink-3); display: grid; place-items: center; font-size: 11px; color: #fff; }
+.check .box.on { background: var(--brand); border-color: var(--brand); }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.footer-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 18px; }
+details.adv { margin-top: 14px; font-size: 13px; color: var(--ink-2); }
+
+/* --- 3. Busqueda --- */
+.progress-card { max-width: 560px; margin: 50px auto 0; padding: 26px 28px; text-align: center; }
+.orbit { width: 64px; height: 64px; margin: 0 auto 10px; position: relative; }
+.orbit img { width: 64px; height: 64px; border-radius: 16px; }
+.orbit::after { content: ""; position: absolute; inset: -8px; border-radius: 22px; border: 2px solid var(--brand); opacity: .35; animation: pulse 1.6s ease-out infinite; }
+@keyframes pulse { from { transform: scale(.92); opacity: .5 } to { transform: scale(1.12); opacity: 0 } }
+.bar { height: 10px; border-radius: 5px; background: var(--surface-2); overflow: hidden; margin: 18px 0 10px; }
+.bar i { display: block; height: 100%; width: 38%; background: linear-gradient(90deg, var(--brand), #4f86ff); border-radius: 5px; }
+.stats { display: flex; justify-content: space-between; font-size: 12.5px; color: var(--ink-2); }
+.stats b { color: var(--ink); }
+.now-exploring { margin: 18px 0 4px; font-size: 13px; color: var(--ink-3); }
+.now-exploring div { color: var(--ink); font-weight: 600; font-size: 14px; margin-top: 3px; }
+.activity { font-size: 12px; color: var(--ok); margin: 14px 0 18px; display: flex; gap: 6px; justify-content: center; align-items: center; }
+.activity::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+
+/* --- 4. Resultados --- */
+.results-head { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 12px; }
+.toolbar { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+.toolbar .spacer { flex: 1; }
+.select { font: 13px var(--font); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; background: var(--surface); color: var(--ink); }
+.results-wrap { display: grid; grid-template-columns: 1fr 230px; gap: 14px; }
+.paper { padding: 12px 14px; margin-bottom: 8px; display: grid; grid-template-columns: 46px 1fr auto; gap: 12px; align-items: start; }
+.score { text-align: center; }
+.score .v { font-family: var(--font-display); font-weight: 700; font-size: 16px; color: var(--brand-ink); }
+.score .mini { height: 4px; border-radius: 2px; background: var(--surface-2); margin-top: 4px; overflow: hidden; }
+.score .mini i { display: block; height: 100%; background: var(--brand); }
+.paper .t { font-weight: 600; font-size: 14px; line-height: 1.3; }
+.paper .m { font-size: 12px; color: var(--ink-3); margin-top: 3px; }
+.paper .side { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.why { grid-column: 2 / 4; background: var(--surface-2); border-radius: 9px; padding: 10px 12px; font-size: 12.5px; color: var(--ink-2); margin-top: 2px; }
+.why .bars { display: grid; grid-template-columns: 160px 1fr 40px; gap: 6px 10px; align-items: center; margin: 4px 0 8px; }
+.why .bars i { height: 6px; border-radius: 3px; background: var(--brand); display: block; }
+.why .bars .track { background: var(--line); border-radius: 3px; }
+.why .kw { display: flex; gap: 5px; flex-wrap: wrap; }
+.why .kw span { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 2px 7px; font-size: 11.5px; }
+.side-panel { padding: 14px; font-size: 13px; align-self: start; position: sticky; top: 0; }
+.side-panel h4 { margin: 0 0 8px; font-size: 13px; }
+.side-panel .pub { display: flex; justify-content: space-between; align-items: center; margin: 6px 0; }
+.side-panel .pub .check { margin: 0; font-size: 12.5px; }
+.side-panel .count { color: var(--ink-3); font-size: 12px; }
+.bottombar { position: sticky; bottom: -22px; margin: 10px -28px -22px; padding: 12px 28px; background: var(--surface); border-top: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; }
+
+/* --- 5. Curacion --- */
+.cur-wrap { max-width: 660px; margin: 4px auto 0; }
+.cur-top { display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: var(--ink-2); margin-bottom: 8px; }
+.cur-progress { height: 4px; background: var(--surface-2); border-radius: 2px; margin-bottom: 14px; }
+.cur-progress i { display: block; height: 100%; width: 24%; background: var(--brand); border-radius: 2px; }
+.cur-card { padding: 20px 22px; transform: rotate(-.6deg); }
+.cur-card .t { font-family: var(--font-display); font-size: 18px; font-weight: 650; line-height: 1.3; }
+.cur-card .m { font-size: 13px; color: var(--ink-3); margin: 6px 0 12px; }
+.cur-card .abs { font-size: 13.5px; line-height: 1.55; color: var(--ink-2); max-height: 150px; overflow: hidden; -webkit-mask-image: linear-gradient(#000 70%, transparent); mask-image: linear-gradient(#000 70%, transparent); }
+.cur-card .meta-row { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+.cur-actions { display: flex; justify-content: center; gap: 14px; margin-top: 18px; }
+.cur-actions .btn { min-width: 160px; justify-content: center; padding: 11px 18px; }
+.btn.discard { background: var(--surface); color: var(--bad); border-color: var(--line); }
+.btn.keep { background: var(--ok); color: #fff; }
+.cur-hint { text-align: center; font-size: 12px; color: var(--ink-3); margin-top: 12px; }
+
+/* --- 6. Exportar --- */
+.formats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 6px 0 18px; }
+.fmt { padding: 14px; cursor: pointer; }
+.fmt.on { outline: 2px solid var(--brand); outline-offset: -1px; background: var(--brand-soft); }
+.fmt .ext { font-family: var(--font-display); font-weight: 700; font-size: 18px; color: var(--brand-ink); }
+.fmt .name { font-weight: 600; font-size: 13px; margin-top: 4px; }
+.fmt .desc { font-size: 12px; color: var(--ink-3); margin-top: 4px; line-height: 1.35; }
+.summary { display: flex; gap: 18px; padding: 14px 16px; font-size: 13px; color: var(--ink-2); margin-bottom: 16px; }
+.summary b { color: var(--ink); font-size: 18px; display: block; font-family: var(--font-display); }
+.pathrow { display: flex; gap: 8px; }
+.success { margin-top: 16px; padding: 12px 14px; border-radius: 10px; background: var(--ok-soft); color: var(--ok); font-size: 13px; display: flex; justify-content: space-between; align-items: center; }
+
+/* --- 7. Ajustes --- */
+.settings { max-width: 640px; }
+.settings .panel { margin-bottom: 14px; }
+.settings .field { margin-bottom: 14px; }
+</style>
+</head>
+<body>
+
+<div class="demo-bar">
+  <strong>Maqueta GUI v3 · pantalla:</strong>
+  <button data-go="home" class="on">1 Inicio</button>
+  <button data-go="params">2 Parámetros</button>
+  <button data-go="search">3 Búsqueda</button>
+  <button data-go="results">4 Resultados</button>
+  <button data-go="curate">5 Curación</button>
+  <button data-go="export">6 Exportar</button>
+  <button data-go="settings">Ajustes</button>
+  <span class="sep"></span>
+  <button id="theme">Modo oscuro</button>
+</div>
+
+<div class="window">
+  <div class="titlebar"><img src="../../packaging/icon.png" alt=""> bib-exprés <span class="ctl">─ ☐ ✕</span></div>
+
+  <header class="appbar">
+    <div class="brand"><img src="../../packaging/icon.png" alt="">bib_exprés</div>
+    <nav class="steps" id="steps">
+      <span class="step" data-s="home"><span class="n">1</span><span data-i="step1">Paper</span></span>
+      <span class="step" data-s="params"><span class="n">2</span><span data-i="step2">Parámetros</span></span>
+      <span class="step" data-s="results"><span class="n">3</span><span data-i="step3">Resultados</span></span>
+      <span class="step" data-s="curate"><span class="n">4</span><span data-i="step4">Curación</span></span>
+      <span class="step" data-s="export"><span class="n">5</span><span data-i="step5">Exportar</span></span>
+    </nav>
+    <div class="right">
+      <div class="lang"><button class="on" data-lang="es">ES</button><button data-lang="en">EN</button></div>
+      <button class="iconbtn" data-go="settings">⚙ <span data-i="settings">Ajustes</span></button>
+    </div>
+  </header>
+
+  <main class="main">
+
+    <!-- 1. INICIO -->
+    <section class="screen on" id="home">
+      <div class="hero">
+        <img src="../../packaging/icon.png" alt="">
+        <h1>bib_exprés</h1>
+        <p class="slogan" data-i="slogan">De un paper a tu bibliografía, sin cajas negras.</p>
+        <div class="card searchbox">
+          <input class="input" value="Attention Is All You Need" aria-label="paper">
+          <button class="btn primary" data-go="params" data-i="continue">Continuar →</button>
+        </div>
+        <p class="hint" data-i="inputHint">DOI, enlace o ID de arXiv, o el título del paper.</p>
+        <p class="or" data-i="or">— o —</p>
+        <div class="drop" data-i="drop">📄 Arrastra aquí un PDF, o <a href="#" style="color:var(--brand)">elígelo</a></div>
+        <div class="examples">
+          <span class="chip" data-i="recent">Recientes:</span>
+          <span class="chip">10.1126/science.1225829</span>
+          <span class="chip">El análisis factorial exploratorio…</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. PARAMETROS -->
+    <section class="screen" id="params">
+      <div class="card rootpaper">
+        <div class="ok">✓</div>
+        <div><div class="t">Attention Is All You Need</div><div class="m">Vaswani, Shazeer, Parmar… (2017) · NeurIPS · <span data-i="langEn">inglés</span></div></div>
+        <button class="btn text" style="margin-left:auto" data-go="home" data-i="change">Cambiar</button>
+      </div>
+      <div class="grid2">
+        <div class="card panel">
+          <h3 data-i="howFar">¿Hasta dónde buscar?</h3>
+          <label class="f" data-i="generations">Generaciones</label>
+          <div class="seg"><span>1</span><span class="on">2</span><span>3</span><span>4</span></div>
+          <p class="hint" data-i="genHint">2: referencias y citas del paper, y las de esos papers.</p>
+          <label class="f" style="margin-top:14px"><span data-i="howMany">Artículos en el resultado</span>: 200</label>
+          <div class="slider"><i style="width:40%"></i><b style="left:38%"></b></div>
+          <label class="f" style="margin-top:14px" data-i="modes">Seguir</label>
+          <div class="chips"><span class="chip on" data-i="refs">✓ Referencias</span><span class="chip on" data-i="cites">✓ Citas</span><span class="chip" data-i="similar">+ Similares</span></div>
+        </div>
+        <div class="card panel">
+          <h3 data-i="filters">Filtros del resultado</h3>
+          <label class="f" data-i="language">Idioma</label>
+          <select class="select" style="width:100%"><option data-i="langAny">En cualquier idioma</option></select>
+          <label class="f" style="margin-top:12px" data-i="access">Acceso</label>
+          <div class="check"><span class="box"></span><span data-i="oaOnly">Solo acceso abierto</span></div>
+          <div class="check"><span class="box on">✓</span><span data-i="readable">Solo lo que puedo leer (abierto + mi institución)</span></div>
+          <label class="f" style="margin-top:12px" data-i="docType">Tipo de documento</label>
+          <div class="chips"><span class="chip on" data-i="all">Todos</span><span class="chip">Artículo</span><span class="chip">Preprint</span><span class="chip">Review</span><span class="chip">…</span></div>
+          <p class="hint" data-i="filtersHint">Los filtros eligen qué ves; no limitan por dónde se busca.</p>
+        </div>
+      </div>
+      <details class="adv"><summary data-i="advanced">Avanzado: pesos del score, fanout, presupuesto de exploración</summary></details>
+      <div class="footer-actions">
+        <span class="hint" data-i="estimate">Estimado: ~30 s · explorará hasta 21 papers</span>
+        <button class="btn primary" data-go="search" data-i="search">Buscar</button>
+      </div>
+    </section>
+
+    <!-- 3. BUSQUEDA -->
+    <section class="screen" id="search">
+      <div class="card progress-card">
+        <div class="orbit"><img src="../../packaging/icon.png" alt=""></div>
+        <h1 style="font-size:19px" data-i="searching">Buscando…</h1>
+        <div class="bar"><i></i></div>
+        <div class="stats"><span><span data-i="explored">Explorados</span> <b>8 / 21</b></span><span><b>1.204</b> <span data-i="candidates">candidatos vistos</span></span><span><span data-i="gen">Generación</span> <b>2</b></span></div>
+        <div class="now-exploring"><span data-i="exploring">Explorando ahora</span><div>Effective Approaches to Attention-based Neural Machine Translation</div></div>
+        <div class="activity" data-i="activity">Última actividad hace 1 s</div>
+        <button class="btn ghost" data-go="results" data-i="cancel">Cancelar y ver lo encontrado</button>
+      </div>
+    </section>
+
+    <!-- 4. RESULTADOS -->
+    <section class="screen" id="results">
+      <div class="results-head">
+        <div><h1><span data-i="found">200 artículos</span></h1><p class="sub" style="margin:0" data-i="foundSub">de 1.537 candidatos vistos · 3 ocultos que no puedes leer</p></div>
+      </div>
+      <div class="toolbar">
+        <span class="hint" style="margin:0" data-i="sort">Ordenar:</span>
+        <select class="select"><option data-i="byRel">Relevancia</option><option>Autor</option><option>Año</option></select>
+        <span class="chip on" data-i="fRead">Puedo leer ✕</span>
+        <span class="chip" data-i="fLang">+ Idioma</span>
+        <span class="spacer"></span>
+        <input class="input" style="width:200px;padding:6px 10px;font-size:13px" placeholder="Buscar en resultados" data-i-ph="searchIn">
+      </div>
+      <div class="results-wrap">
+        <div>
+          <div class="card paper">
+            <div class="score"><div class="v">0.71</div><div class="mini"><i style="width:71%"></i></div></div>
+            <div><div class="t">Effective Approaches to Attention-based Neural Machine Translation</div><div class="m">Luong, Pham, Manning · 2015 · EMNLP</div></div>
+            <div class="side"><span class="badge b-open" data-i="bOpen">abierto</span><button class="btn ghost small" data-i="open">Abrir</button></div>
+            <div class="why">
+              <b data-i="whyTitle">Por qué está aquí</b>
+              <div class="bars">
+                <span data-i="wTopic">Relevancia temática</span><span class="track"><i style="width:66%"></i></span><span>0.66</span>
+                <span data-i="wConn">Conectado con 5 papers</span><span class="track"><i style="width:100%"></i></span><span>1.00</span>
+                <span data-i="wKw">Palabras clave</span><span class="track"><i style="width:27%"></i></span><span>0.27</span>
+              </div>
+              <div class="kw"><span>attention mechanism</span><span>neural machine translation</span><span>encoder-decoder</span></div>
+            </div>
+          </div>
+          <div class="card paper">
+            <div class="score"><div class="v">0.64</div><div class="mini"><i style="width:64%"></i></div></div>
+            <div><div class="t">Neural Machine Translation by Jointly Learning to Align and Translate</div><div class="m">Bahdanau, Cho, Bengio · 2014 · arXiv</div></div>
+            <div class="side"><span class="badge b-open" data-i="bOpen">abierto</span><button class="btn text small" data-i="why">¿Por qué?</button></div>
+          </div>
+          <div class="card paper">
+            <div class="score"><div class="v">0.58</div><div class="mini"><i style="width:58%"></i></div></div>
+            <div><div class="t">Long Short-Term Memory</div><div class="m">Hochreiter, Schmidhuber · 1997 · Neural Computation</div></div>
+            <div class="side"><span class="badge b-inst" data-i="bInst">mi institución</span><button class="btn ghost small" data-i="openLib">Abrir vía biblioteca</button></div>
+          </div>
+          <div class="card paper">
+            <div class="score"><div class="v">0.52</div><div class="mini"><i style="width:52%"></i></div></div>
+            <div><div class="t">Sequence to Sequence Learning with Neural Networks</div><div class="m">Sutskever, Vinyals, Le · 2014 · NeurIPS</div></div>
+            <div class="side"><span class="badge b-unk" data-i="bUnk">sin comprobar</span><button class="btn text small" data-i="why">¿Por qué?</button></div>
+          </div>
+        </div>
+        <aside class="card side-panel">
+          <h4 data-i="myInst">Mi institución</h4>
+          <p class="hint" style="margin-top:0" data-i="myInstHint">Marca las editoriales que cubre. Aproximado.</p>
+          <div class="pub"><span class="check"><span class="box on">✓</span>Elsevier BV</span><span class="count">21</span></div>
+          <div class="pub"><span class="check"><span class="box on">✓</span>Springer Nature</span><span class="count">14</span></div>
+          <div class="pub"><span class="check"><span class="box"></span>IEEE</span><span class="count">12</span></div>
+          <div class="pub"><span class="check"><span class="box"></span>MIT Press</span><span class="count">4</span></div>
+          <div class="pub"><span class="check"><span class="box"></span>ACM</span><span class="count">3</span></div>
+          <button class="btn ghost small" style="margin-top:8px;width:100%;justify-content:center" data-i="savePubs">Guardar</button>
+        </aside>
+      </div>
+      <div class="bottombar">
+        <button class="btn ghost" data-go="params" data-i="newSearch">← Ajustar búsqueda</button>
+        <div class="row"><button class="btn ghost" data-go="curate" data-i="curate">Revisar uno a uno</button><button class="btn primary" data-go="export" data-i="export">Exportar 200</button></div>
+      </div>
+    </section>
+
+    <!-- 5. CURACION -->
+    <section class="screen" id="curate">
+      <div class="cur-wrap">
+        <div class="cur-top"><span><span data-i="reviewed">Revisados</span> <b>48 / 200</b> · <span data-i="kept">41 guardados</span></span><button class="btn text" data-go="export" data-i="finish">Terminar aquí →</button></div>
+        <div class="cur-progress"><i></i></div>
+        <div class="card cur-card">
+          <div class="meta-row"><span class="badge b-open" data-i="bOpen">abierto</span><span class="chip">0.49 · <span data-i="conn3">conectado con 3 papers</span></span><span class="chip">transformer · self-attention</span></div>
+          <div class="t">BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding</div>
+          <div class="m">Devlin, Chang, Lee, Toutanova · 2019 · NAACL</div>
+          <div class="abs">We introduce a new language representation model called BERT, which stands for Bidirectional Encoder Representations from Transformers. Unlike recent language representation models, BERT is designed to pre-train deep bidirectional representations from unlabeled text by jointly conditioning on both left and right context in all layers. As a result, the pre-trained BERT model can be fine-tuned with just one additional output layer to create state-of-the-art models for a wide range of tasks…</div>
+        </div>
+        <div class="cur-actions">
+          <button class="btn discard" data-i="discard">✕ Descartar</button>
+          <button class="btn keep" data-i="keep">✓ Guardar</button>
+        </div>
+        <p class="cur-hint"><span class="kbd">←</span> <span class="kbd">→</span> <span data-i="curHint">o arrastra la tarjeta · </span><span class="kbd">Z</span> <span data-i="undo">deshacer</span></p>
+      </div>
+    </section>
+
+    <!-- 6. EXPORTAR -->
+    <section class="screen" id="export">
+      <h1 data-i="exportTitle">Exportar</h1>
+      <p class="sub" data-i="exportSub">Elige formato y dónde guardarlo.</p>
+      <div class="card summary">
+        <div><b>193</b><span data-i="sumOut">van al fichero</span></div>
+        <div><b>7</b><span data-i="sumDiscarded">descartados en la curación</span></div>
+        <div><b>3</b><span data-i="sumHidden">ocultos (no los puedes leer)</span></div>
+      </div>
+      <div class="formats">
+        <div class="card fmt"><div class="ext">.bib</div><div class="name">BibTeX</div><div class="desc" data-i="dBib">LaTeX, Overleaf, JabRef</div></div>
+        <div class="card fmt"><div class="ext">.ris</div><div class="name">RIS</div><div class="desc" data-i="dRis">Zotero, Mendeley, EndNote</div></div>
+        <div class="card fmt"><div class="ext">.json</div><div class="name">CSL-JSON</div><div class="desc" data-i="dCsl">Pandoc, Zotero</div></div>
+        <div class="card fmt on"><div class="ext">.xlsx</div><div class="name">Excel</div><div class="desc" data-i="dXlsx">Para revisar: autores, tema, relevancia, por qué, acceso y notas</div></div>
+      </div>
+      <label class="f" data-i="saveAs">Guardar como</label>
+      <div class="pathrow"><input class="input" value="C:\Users\…\Documentos\revision-transformers.xlsx"><button class="btn ghost" data-i="pick">Elegir…</button><button class="btn primary" data-i="save">Guardar</button></div>
+      <div class="success"><span data-i="saved">✓ Guardado: 193 artículos en revision-transformers.xlsx</span><button class="btn ghost small" data-i="openFolder">Abrir carpeta</button></div>
+    </section>
+
+    <!-- AJUSTES -->
+    <section class="screen settings" id="settings">
+      <h1 data-i="settings">Ajustes</h1>
+      <p class="sub" data-i="settingsSub">Se guardan en este equipo.</p>
+      <div class="card panel">
+        <h3 data-i="appearance">Interfaz</h3>
+        <div class="grid2">
+          <div><label class="f" data-i="uiLang">Idioma</label><div class="seg"><span class="on">Español</span><span>English</span></div><p class="hint" data-i="uiLangHint">Por defecto, el de tu sistema.</p></div>
+          <div><label class="f" data-i="theme">Tema</label><div class="seg"><span class="on" data-i="system">Sistema</span><span data-i="light">Claro</span><span data-i="dark">Oscuro</span></div></div>
+        </div>
+      </div>
+      <div class="card panel">
+        <h3 data-i="library">Mi biblioteca</h3>
+        <div class="field"><label class="f" data-i="libLink">Enlace de acceso remoto</label><div class="pathrow"><input class="input" placeholder="https://proxy.tu-uni.es/login?url="><button class="btn ghost" data-i="test">Probar</button></div><p class="hint" data-i="libHint">Cómo encontrarlo: entra desde casa a un artículo vía tu biblioteca y mira la URL (ezproxy, login?url=, openathens). <a href="#" style="color:var(--brand)">Guía</a></p></div>
+      </div>
+      <div class="card panel">
+        <h3 data-i="apis">Fuentes de datos</h3>
+        <div class="field"><label class="f" data-i="email">Email de contacto (mejora el límite de OpenAlex)</label><input class="input" placeholder="tu@email.com"></div>
+        <div class="field" style="margin:0"><label class="f" data-i="s2key">API key de Semantic Scholar (opcional)</label><input class="input" placeholder="••••••••"></div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+// ===== Navegacion de la maqueta =====
+const order = ["home", "params", "results", "curate", "export"];
+const stepOf = { home: "home", params: "params", search: "params", results: "results", curate: "curate", export: "export", settings: null };
+function go(id) {
+  document.querySelectorAll(".screen").forEach(s => s.classList.toggle("on", s.id === id));
+  document.querySelectorAll(".demo-bar [data-go]").forEach(b => b.classList.toggle("on", b.dataset.go === id));
+  const cur = stepOf[id];
+  const idx = cur ? order.indexOf(cur) : -1;
+  document.querySelectorAll(".step").forEach(st => {
+    const i = order.indexOf(st.dataset.s);
+    st.classList.toggle("now", i === idx);
+    st.classList.toggle("done", idx >= 0 && i < idx);
+  });
+}
+document.querySelectorAll("[data-go]").forEach(el => el.addEventListener("click", e => { e.preventDefault(); go(el.dataset.go); }));
+go("home");
+
+// ===== Tema =====
+const themeBtn = document.getElementById("theme");
+themeBtn.addEventListener("click", () => {
+  const dark = document.documentElement.dataset.theme !== "dark";
+  document.documentElement.dataset.theme = dark ? "dark" : "light";
+  themeBtn.textContent = dark ? "Modo claro" : "Modo oscuro";
+});
+
+// ===== i18n: asi funcionaria en la app (diccionarios es/en, atributos data-i) =====
+const EN = {
+  step1: "Paper", step2: "Settings", step3: "Results", step4: "Curation", step5: "Export", settings: "Settings",
+  slogan: "From one paper to a full bibliography — no black boxes.", continue: "Continue →",
+  inputHint: "DOI, arXiv link or ID, or the paper's title.", or: "— or —",
+  drop: "📄 Drop a PDF here, or choose one", recent: "Recent:", langEn: "English", change: "Change",
+  howFar: "How far to search?", generations: "Generations", genHint: "2: the paper's references and citations, and theirs.",
+  howMany: "Articles in the result", modes: "Follow", refs: "✓ References", cites: "✓ Citations", similar: "+ Similar",
+  filters: "Result filters", language: "Language", langAny: "Any language", access: "Access",
+  oaOnly: "Open access only", readable: "Only what I can read (open + my institution)", docType: "Document type", all: "All",
+  filtersHint: "Filters choose what you see; they don't limit where the search goes.",
+  advanced: "Advanced: score weights, fanout, exploration budget", estimate: "Estimated: ~30 s · will explore up to 21 papers",
+  search: "Search", searching: "Searching…", explored: "Explored", candidates: "candidates seen", gen: "Generation",
+  exploring: "Exploring now", activity: "Last activity 1 s ago", cancel: "Cancel and see what was found",
+  found: "200 articles", foundSub: "out of 1,537 candidates seen · 3 hidden you can't read", sort: "Sort:", byRel: "Relevance",
+  fRead: "I can read ✕", fLang: "+ Language", bOpen: "open", open: "Open", whyTitle: "Why it's here",
+  wTopic: "Topical relevance", wConn: "Linked to 5 papers", wKw: "Keywords", why: "Why?", bInst: "my institution",
+  openLib: "Open via library", bUnk: "unchecked", myInst: "My institution", myInstHint: "Tick the publishers it covers. Approximate.",
+  savePubs: "Save", newSearch: "← Adjust search", curate: "Review one by one", export: "Export 200",
+  reviewed: "Reviewed", kept: "41 kept", finish: "Finish here →", conn3: "linked to 3 papers", discard: "✕ Discard", keep: "✓ Keep",
+  curHint: "or drag the card · ", undo: "undo", exportTitle: "Export", exportSub: "Choose a format and where to save it.",
+  sumOut: "go to the file", sumDiscarded: "discarded during curation", sumHidden: "hidden (you can't read them)",
+  dBib: "LaTeX, Overleaf, JabRef", dRis: "Zotero, Mendeley, EndNote", dCsl: "Pandoc, Zotero",
+  dXlsx: "For reviewing: authors, topic, relevance, why, access and notes", saveAs: "Save as", pick: "Choose…", save: "Save",
+  saved: "✓ Saved: 193 articles to revision-transformers.xlsx", openFolder: "Open folder", settingsSub: "Stored on this computer.",
+  appearance: "Interface", uiLang: "Language", uiLangHint: "Defaults to your system's.", theme: "Theme", system: "System",
+  light: "Light", dark: "Dark", library: "My library", libLink: "Remote access link", test: "Test",
+  libHint: "How to find it: open an article through your library from home and look at the URL (ezproxy, login?url=, openathens). Guide",
+  apis: "Data sources", email: "Contact email (raises OpenAlex's limit)", s2key: "Semantic Scholar API key (optional)", searchIn: "Search in results",
+};
+const ES = {};
+document.querySelectorAll("[data-i]").forEach(el => { ES[el.dataset.i] = ES[el.dataset.i] || el.textContent; });
+document.querySelectorAll("[data-i-ph]").forEach(el => { ES[el.dataset.iPh] = el.placeholder; });
+function setLang(lang) {
+  const dict = lang === "en" ? EN : ES;
+  document.querySelectorAll("[data-i]").forEach(el => { if (dict[el.dataset.i]) el.textContent = dict[el.dataset.i]; });
+  document.querySelectorAll("[data-i-ph]").forEach(el => { if (dict[el.dataset.iPh]) el.placeholder = dict[el.dataset.iPh]; });
+  document.querySelectorAll(".lang button").forEach(b => b.classList.toggle("on", b.dataset.lang === lang));
+  document.documentElement.lang = lang;
+}
+document.querySelectorAll(".lang button").forEach(b => b.addEventListener("click", () => setLang(b.dataset.lang)));
+</script>
+</body>
+</html>

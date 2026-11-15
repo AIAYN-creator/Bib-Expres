@@ -62,3 +62,17 @@ def test_meets_threshold():
     p.relevance_score = 0.5
     assert meets_threshold(p, 0.3)
     assert not meets_threshold(p, 0.6)
+
+
+def test_explain_in_english():
+    from bib_expres.relevance import explain
+
+    bd = {
+        "tema": 0.6, "citas": 0.4, "recencia": 0.2, "relevancia": 0.5,
+        "conexiones": 3, "palabras_clave": ["attention"], "final": 0.48,
+    }
+    assert explain(bd, "en") == (
+        "0.48 = relevance 0.50 (topic 0.60, citations 0.40, recency 0.20) · "
+        "linked to 3 papers in the search · shares: attention"
+    )
+    assert explain(bd).startswith("0.48 = relevancia 0.50")

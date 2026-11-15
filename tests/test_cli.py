@@ -137,18 +137,54 @@ def test_quiet_flag_defaults_off():
 
 
 def test_print_progress_writes_single_line_to_stderr(capsys):
-    _print_progress(ProgressEvent(found=12, max_articles=200, generation=2, current_title="Some Paper"))
+    _print_progress(
+        ProgressEvent(explored=5, planned=21, candidates=480, generation=2, current_title="Some Paper")
+    )
     out, err = capsys.readouterr()
     assert out == ""
-    assert err.startswith("\r12/200 articulos -- generacion 2 -- Some Paper")
+    assert err.startswith("\rexplorados 5/21 -- 480 candidatos -- generacion 2 -- Some Paper")
     assert "\n" not in err
 
 
 def test_print_progress_clears_line_when_finished(capsys):
-    _print_progress(ProgressEvent(found=12, max_articles=200, generation=0, current_title=None, finished=True))
+    _print_progress(
+        ProgressEvent(explored=21, planned=21, candidates=900, generation=0, current_title=None, finished=True)
+    )
     _, err = capsys.readouterr()
     assert err.strip() == ""
 
+
+def test_language_flag_parsing():
+    parser = _build_parser()
+    assert parser.parse_args(["--doi", "10.1/x"]).language is None
+    assert parser.parse_args(["--doi", "10.1/x", "--language", "any"]).language is None
+    assert parser.parse_args(["--doi", "10.1/x", "--language", "same"]).language == "same"
+    assert parser.parse_args(["--doi", "10.1/x", "--language", "es, EN"]).language == {"es", "en"}
+
+
+def test_language_flag_rejects_garbage():
+    parser = _build_parser()
+    with pytest.raises(SystemExit):
+        parser.parse_args(["--doi", "10.1/x", "--language", "es;drop"])
+
+
+def test_access_flags_parse():
+    args = _build_parser().parse_args(
+        ["--doi", "10.1/x", "--library-link", "https://p.edu/login?url=", "--publishers", "A;B",
+         "--accessible-only", "--strict-access"]
+    )
+    assert args.library_link == "https://p.edu/login?url="
+    assert args.publishers == "A;B"
+    assert args.accessible_only and args.strict_access
+
+
+def test_invalid_library_link_fails_before_searching(monkeypatch, capsys):
+    from bib_expres import cli
+
+    monkeypatch.setattr(cli, "expand", lambda *a, **k: pytest.fail("no deberia buscar"))
+    code = cli.main(["--doi", "10.1/x", "--library-link", "http://insecure.edu/?url="])
+    assert code == 1
+    assert "https" in capsys.readouterr().err
 
 def test_cli_reports_rate_limit_and_exits_1(monkeypatch, capsys):
     from bib_expres import cli

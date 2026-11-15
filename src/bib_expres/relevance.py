@@ -42,9 +42,18 @@ def score(
     weights: RelevanceWeights,
     current_year: int | None = None,
 ) -> float:
-    """Formula simple y transparente: media ponderada de solapamiento tematico,
-    citas normalizadas (log) y recencia. Se mantiene en [0, 1], tal como asume
-    SearchConfig.relevance_threshold."""
+    """Relevancia tematica (la formula de v1/v2): media ponderada de solapamiento
+    tematico, citas normalizadas (log) y recencia, en [0, 1]. En v3 es una de las
+    tres senales del score final -- ver final_score()."""
+    return thematic_components(paper, parent, weights, current_year)["relevancia"]
+
+
+def thematic_components(
+    paper: Paper,
+    parent: Paper,
+    weights: RelevanceWeights,
+    current_year: int | None = None,
+) -> dict[str, float]:
     if current_year is None:
         current_year = date.today().year
 
@@ -53,11 +62,101 @@ def score(
     recency = _recency_normalized(paper, current_year)
 
     total_weight = weights.topic + weights.citations + weights.recency
-    if total_weight == 0:
-        return 0.0
-
     raw = weights.topic * topic + weights.citations * citations + weights.recency * recency
-    return raw / total_weight
+    return {
+        "tema": topic,
+        "citas": citations,
+        "recencia": recency,
+        "relevancia": raw / total_weight if total_weight else 0.0,
+    }
+
+
+COUPLING_SATURATION = 5  # a partir de 5 conexiones la senal ya no crece
+
+
+def coupling_score(connections: int) -> float:
+    """Conexiones = en cuantos papers explorados aparece este (como referencia o
+    cita). Una sola aparicion es lo minimo para estar en el pool, asi que cuenta 0;
+    crece en escala log y satura en COUPLING_SATURATION."""
+    extra = max(connections - 1, 0)
+    return min(1.0, math.log1p(extra) / math.log1p(COUPLING_SATURATION))
+
+
+def shared_keywords(paper: Paper, parent: Paper) -> list[str]:
+    parent_kw = {k.lower(): k for k in parent.keywords}
+    return sorted({parent_kw[k.lower()] for k in paper.keywords if k.lower() in parent_kw})
+
+
+def keyword_score(paper: Paper, parent: Paper) -> float:
+    """Jaccard entre palabras clave de OpenAlex (sin distinguir mayusculas)."""
+    a = {k.lower() for k in paper.keywords}
+    b = {k.lower() for k in parent.keywords}
+    if not a or not b:
+        return 0.0
+    return len(a & b) / len(a | b)
+
+
+def final_score(
+    paper: Paper,
+    parent: Paper,
+    weights: RelevanceWeights,
+    connections: int,
+    current_year: int | None = None,
+) -> tuple[float, dict]:
+    """Score final de v3, en [0, 1], y su desglose:
+    (relevancia tematica + w_conexiones * conexiones + w_palabras * palabras clave)
+    / (1 + w_conexiones + w_palabras)."""
+    thematic = thematic_components(paper, parent, weights, current_year)
+    coupling = coupling_score(connections)
+    keywords = keyword_score(paper, parent)
+    denominator = 1 + weights.coupling + weights.keywords
+    total = (
+        thematic["relevancia"] + weights.coupling * coupling + weights.keywords * keywords
+    ) / denominator
+    breakdown = {
+        **thematic,
+        "conexiones": connections,
+        "conexiones_score": coupling,
+        "palabras_clave": shared_keywords(paper, parent),
+        "palabras_clave_score": keywords,
+        "final": total,
+    }
+    return total, breakdown
+
+
+_EXPLAIN_TEXT = {
+    "es": {
+        "rel": "relevancia {r:.2f} (tema {t:.2f}, citas {c:.2f}, recencia {y:.2f})",
+        "conn1": "conectado con 1 paper de la búsqueda",
+        "connN": "conectado con {n} papers de la búsqueda",
+        "kw": "comparte: {k}",
+    },
+    "en": {
+        "rel": "relevance {r:.2f} (topic {t:.2f}, citations {c:.2f}, recency {y:.2f})",
+        "conn1": "linked to 1 paper in the search",
+        "connN": "linked to {n} papers in the search",
+        "kw": "shares: {k}",
+    },
+}
+
+
+def explain(breakdown: dict | None, lang: str = "es") -> str:
+    """Una linea legible: por que este articulo esta donde esta."""
+    if not breakdown:
+        return ""
+    text = _EXPLAIN_TEXT.get(lang, _EXPLAIN_TEXT["es"])
+    parts = [
+        text["rel"].format(
+            r=breakdown["relevancia"], t=breakdown["tema"], c=breakdown["citas"], y=breakdown["recencia"]
+        )
+    ]
+    n = breakdown.get("conexiones", 0)
+    parts.append(text["connN"].format(n=n) if n > 1 else text["conn1"])
+    kws = breakdown.get("palabras_clave") or []
+    if kws:
+        shown = ", ".join(kws[:4]) + ("..." if len(kws) > 4 else "")
+        parts.append(text["kw"].format(k=shown))
+    return f"{breakdown['final']:.2f} = " + " · ".join(parts)
 
 
 def meets_threshold(paper: Paper, threshold: float) -> bool:

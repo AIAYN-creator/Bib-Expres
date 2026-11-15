@@ -401,6 +401,34 @@ def test_parse_openalex_work_without_topic_or_keywords():
     assert paper.keywords == []
 
 
+def test_parse_openalex_work_language():
+    paper = parse_openalex_work({"id": "https://openalex.org/W1", "display_name": "X", "language": "es"})
+    assert paper.language == "es"
+    assert parse_openalex_work({"id": "https://openalex.org/W1", "display_name": "X"}).language is None
+
+
+def test_parse_openalex_work_publisher_and_oa_link():
+    raw = {
+        "id": "https://openalex.org/W1",
+        "display_name": "X",
+        "primary_location": {"source": {
+            "host_organization_name": "Cell Press",
+            "host_organization_lineage_names": ["Cell Press", "Elsevier BV"],
+        }},
+        "open_access": {"is_oa": True, "oa_status": "bronze", "oa_url": "http://www.cell.com/a.pdf"},
+    }
+    paper = parse_openalex_work(raw)
+    assert paper.publisher_lineage == ["Cell Press", "Elsevier BV"]
+    assert paper.oa_status == "bronze"
+    assert paper.oa_url == "http://www.cell.com/a.pdf"
+
+
+def test_parse_openalex_work_publisher_without_lineage():
+    raw = {"id": "https://openalex.org/W1", "display_name": "X",
+           "primary_location": {"source": {"host_organization_name": "Wiley"}}}
+    assert parse_openalex_work(raw).publisher_lineage == ["Wiley"]
+    assert parse_openalex_work({"id": "https://openalex.org/W1", "display_name": "X"}).publisher_lineage == []
+
 # -- limite de peticiones (HTTP 429) ----------------------------------------------
 
 
@@ -463,3 +491,58 @@ def test_session_retry_ignores_retry_after_for_server_errors(tmp_path):
     adapter = _client(tmp_path)._session.get_adapter("https://api.example.org")
     assert adapter.max_retries.respect_retry_after_header is False
     assert 429 not in adapter.max_retries.status_forcelist
+
+
+# -- cuota diaria (cabeceras X-RateLimit) --------------------------------------------
+
+
+@pytest.fixture
+def clean_quota():
+    from bib_expres.sources import base
+
+    base._QUOTA.clear()
+    yield base
+    base._QUOTA.clear()
+
+
+def test_quota_is_read_from_response_headers(tmp_path, monkeypatch, clean_quota):
+    client = _client(tmp_path)
+    headers = {"X-RateLimit-Remaining": "592", "X-RateLimit-Limit": "1000", "X-RateLimit-Reset": "3600"}
+    monkeypatch.setattr(client._session, "get", lambda *a, **k: _StatusResponse(200, headers, json_data={"ok": 1}))
+    client.get("/works")
+    q = clean_quota.quota_status("api.example.org")
+    assert q["remaining"] == 592 and q["limit"] == 1000
+    assert 3590 < q["reset_in"] <= 3600
+
+
+def test_quota_unknown_until_a_real_request(clean_quota):
+    assert clean_quota.quota_status("api.openalex.org") is None
+
+
+def test_quota_exhausted_on_long_429(tmp_path, monkeypatch, clean_quota):
+    from bib_expres.sources.base import RateLimitedError
+
+    client = _client(tmp_path)
+    monkeypatch.setattr(client._session, "get", lambda *a, **k: _StatusResponse(429, {"Retry-After": "7200", "X-RateLimit-Limit": "1000"}))
+    with pytest.raises(RateLimitedError):
+        client.get("/works")
+    q = clean_quota.quota_status("api.example.org")
+    assert q["remaining"] == 0 and q["limit"] == 1000 and q["reset_in"] > 7000
+
+
+def test_quota_refills_after_reset(clean_quota, monkeypatch):
+    clean_quota.record_quota("h", {"X-RateLimit-Remaining": "0", "X-RateLimit-Limit": "1000", "X-RateLimit-Reset": "10"})
+    real = clean_quota.time.monotonic
+    monkeypatch.setattr(clean_quota.time, "monotonic", lambda: real() + 20)
+    q = clean_quota.quota_status("h")
+    assert q["reset_in"] == 0 and q["remaining"] == 1000
+
+
+def test_cached_responses_do_not_touch_quota(tmp_path, monkeypatch, clean_quota):
+    client = _client(tmp_path)
+    headers = {"X-RateLimit-Remaining": "500", "X-RateLimit-Limit": "1000"}
+    monkeypatch.setattr(client._session, "get", lambda *a, **k: _StatusResponse(200, headers, json_data={"ok": 1}))
+    client.get("/works")
+    monkeypatch.setattr(client._session, "get", lambda *a, **k: pytest.fail("deberia salir de la cache"))
+    client.get("/works")
+    assert clean_quota.quota_status("api.example.org")["remaining"] == 500

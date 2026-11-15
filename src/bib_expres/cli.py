@@ -6,10 +6,12 @@ import sys
 from dotenv import load_dotenv
 
 from . import __version__
+from .access import AccessConfig, InvalidLibraryTemplate, annotate_access, is_readable
 from .config import ExpansionMode, InstallConfig, RelevanceWeights, SearchConfig
 from .expansion import ProgressEvent, expand
 from .export import infer_format, write
 from .models import Paper
+from .relevance import explain
 from .resolve import (
     DOIResolutionError,
     TitleSearchRequired,
@@ -45,6 +47,22 @@ def _parse_doc_types(raw: str) -> set[str]:
     return {t.strip() for t in raw.split(",") if t.strip()}
 
 
+def _parse_language(raw: str) -> str | set[str] | None:
+    """'any' -> None (sin filtro), 'same' -> idioma del paper padre,
+    'es,en' -> esos codigos."""
+    value = raw.strip().lower()
+    if value in ("", "any"):
+        return None
+    if value == "same":
+        return "same"
+    codes = {c.strip() for c in value.split(",") if c.strip()}
+    if not all(c.isalpha() and 2 <= len(c) <= 3 for c in codes):
+        raise argparse.ArgumentTypeError(
+            f"idioma no valido: '{raw}' -- usa any, same, o codigos ISO como es,en"
+        )
+    return codes
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="bib-expres",
@@ -71,7 +89,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--relevance-threshold",
         type=float,
-        default=0.3,
+        default=0.15,
         help="Umbral minimo de relevancia, 0-1",
     )
     parser.add_argument(
@@ -97,6 +115,61 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Formato de salida; por defecto se infiere de la extension de --output",
     )
     parser.add_argument(
+        "--language",
+        type=_parse_language,
+        default=None,
+        help="Idioma de los articulos: any (cualquiera, por defecto), same (el del "
+        "paper padre) o codigos ISO separados por coma (p.ej. es,en). Los articulos "
+        "sin idioma conocido no se descartan.",
+    )
+    parser.add_argument(
+        "--weight-coupling",
+        type=float,
+        default=1.0,
+        help="Peso de las conexiones (en cuantos papers de la busqueda aparece) en el score final",
+    )
+    parser.add_argument(
+        "--weight-keywords",
+        type=float,
+        default=0.5,
+        help="Peso de las palabras clave en comun con el paper padre en el score final",
+    )
+    parser.add_argument(
+        "--explore-budget",
+        type=int,
+        default=30,
+        help="Maximo de papers a expandir (pedir sus referencias/citas); acota el tiempo",
+    )
+    parser.add_argument(
+        "--explain",
+        action="store_true",
+        help="Mostrar en stderr el desglose del score de los 20 primeros resultados",
+    )
+    parser.add_argument(
+        "--library-link",
+        default=None,
+        help="Plantilla de enlace de tu biblioteca (EZproxy, OpenAthens, OpenURL), p.ej. "
+        "https://proxy.tu-uni.es/login?url= -- admite {doi} y {url}. Por defecto, "
+        "LIBRARY_LINK_TEMPLATE del .env",
+    )
+    parser.add_argument(
+        "--publishers",
+        default=None,
+        help="Editoriales que cubre tu institucion, separadas por ';' (p.ej. "
+        "'Elsevier BV;Springer Nature'). Por defecto, SUBSCRIBED_PUBLISHERS del .env",
+    )
+    parser.add_argument(
+        "--accessible-only",
+        action="store_true",
+        help="Quitar del resultado lo que no puedes leer: ni abierto ni de una editorial "
+        "marcada. Los articulos sin datos para comprobarlo se mantienen",
+    )
+    parser.add_argument(
+        "--strict-access",
+        action="store_true",
+        help="Con --accessible-only, quitar tambien los articulos cuyo acceso no se puede comprobar",
+    )
+    parser.add_argument(
         "--quiet",
         action="store_true",
         help="No mostrar la linea de progreso durante la busqueda",
@@ -115,11 +188,26 @@ def _print_progress(event: ProgressEvent) -> None:
     else:
         title = (event.current_title or "")[:45]
         line = (
-            f"{event.found}/{event.max_articles} articulos"
+            f"explorados {event.explored}/{event.planned} -- {event.candidates} candidatos"
             f" -- generacion {event.generation} -- {title}"
         )
     sys.stderr.write("\r" + line[:_PROGRESS_WIDTH].ljust(_PROGRESS_WIDTH) + ("\r" if not line else ""))
     sys.stderr.flush()
+
+
+def _print_quota() -> None:
+    from .sources.base import quota_status
+
+    q = quota_status("api.openalex.org")
+    if not q or q.get("remaining") is None:
+        return
+    left = q["remaining"] // 75
+    reset = ""
+    if q.get("reset_in") is not None:
+        hours, minutes = divmod(int(q["reset_in"]) // 60, 60)
+        reset = f" -- se reinicia en {hours} h {minutes} min" if hours else f" -- se reinicia en {minutes} min"
+    total = f"/{q['limit']}" if q.get("limit") else ""
+    print(f"Cuota de OpenAlex hoy: {q['remaining']}{total} peticiones (~{left} busquedas){reset}", file=sys.stderr)
 
 
 def _confirm_title_candidate(query: str, openalex_client: OpenAlexClient) -> Paper | None:
@@ -169,10 +257,15 @@ def _run(argv: list[str] | None = None) -> int:
                 topic=args.weight_topic,
                 citations=args.weight_citations,
                 recency=args.weight_recency,
+                coupling=args.weight_coupling,
+                keywords=args.weight_keywords,
             ),
+            explore_budget=args.explore_budget,
             relevance_threshold=args.relevance_threshold,
             allowed_doc_types=args.doc_types,
             require_open_access=args.open_access_only,
+            languages=args.language if isinstance(args.language, set) else None,
+            same_language_as_root=args.language == "same",
         )
     except ValueError as exc:
         print(f"Error de configuracion: {exc}", file=sys.stderr)
@@ -185,6 +278,15 @@ def _run(argv: list[str] | None = None) -> int:
             "-- funcionara con un rate limit mucho mas bajo.",
             file=sys.stderr,
         )
+
+    try:
+        access_config = AccessConfig.from_strings(
+            args.library_link if args.library_link is not None else install.library_link_template,
+            args.publishers if args.publishers is not None else install.subscribed_publishers,
+        )
+    except InvalidLibraryTemplate as exc:
+        print(f"Error en la plantilla de enlace de la biblioteca: {exc}", file=sys.stderr)
+        return 1
 
     openalex = OpenAlexClient(contact_email=install.contact_email)
     crossref = CrossrefClient(contact_email=install.contact_email)
@@ -215,6 +317,20 @@ def _run(argv: list[str] | None = None) -> int:
         on_progress=None if args.quiet else _print_progress,
     )
 
+    if args.explain:
+        for paper in results[1:21]:
+            print(f"- {paper.title[:70]}\n    {explain(paper.score_breakdown)}", file=sys.stderr)
+
+    annotate_access(results, access_config)
+    if args.accessible_only:
+        before = len(results)
+        results = [
+            p
+            for p in results
+            if p is root or is_readable(p.access_status, include_unknown=not args.strict_access)
+        ]
+        print(f"{before - len(results)} articulos quitados por --accessible-only", file=sys.stderr)
+
     output_format = args.format or infer_format(args.output)
     try:
         write(results, args.output, format=output_format)
@@ -223,6 +339,8 @@ def _run(argv: list[str] | None = None) -> int:
         return 1
 
     print(f"{len(results)} articulos escritos en {args.output}")
+    if not args.quiet:
+        _print_quota()
     return 0
 
 

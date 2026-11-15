@@ -1,15 +1,33 @@
 from __future__ import annotations
 
+import json
 import os
+import subprocess
+import sys
 import threading
 import time
+import webbrowser
 from pathlib import Path
 
 import webview
 from dotenv import load_dotenv
+from webview.dom import DOMEventHandler
 
+from ..access import (
+    ACCESS_LABELS,
+    access_label,
+    TEST_DOI,
+    AccessConfig,
+    annotate_access,
+    format_publishers,
+    is_openable_url,
+    library_link,
+    publisher_counts,
+    validate_library_template,
+)
 from ..config import ExpansionMode, InstallConfig, RelevanceWeights, SearchConfig
-from ..expansion import ProgressEvent, expand
+from ..expansion import ProgressEvent, expand, planned_expansions
+from ..relevance import explain
 from ..export import write
 from ..models import Paper
 from ..resolve import (
@@ -18,13 +36,47 @@ from ..resolve import (
     resolve_input,
     search_by_title,
 )
-from ..sources.base import RateLimitedError
+from ..sources.base import RateLimitedError, quota_status
 from ..sources.crossref import CrossrefClient
 from ..sources.openalex import OpenAlexClient
 from ..sources.semantic_scholar import SemanticScholarClient
 
 _STATIC_DIR = Path(__file__).parent / "static"
-_ENV_KEYS = ("CONTACT_EMAIL", "SEMANTIC_SCHOLAR_API_KEY")
+_ENV_KEYS = (
+    "CONTACT_EMAIL",
+    "SEMANTIC_SCHOLAR_API_KEY",
+    "LIBRARY_LINK_TEMPLATE",
+    "SUBSCRIBED_PUBLISHERS",
+    "UI_LANGUAGE",
+    "UI_THEME",
+)
+_UI_LANGUAGES = ("es", "en")
+# Peticiones a OpenAlex de una busqueda por defecto, medidas en validacion-e2e-v3
+# (74 con la cache vacia). Sirve para traducir la cuota a "busquedas que quedan".
+REQUESTS_PER_SEARCH = 75
+_OPENALEX_HOST = "api.openalex.org"
+
+
+def quota_summary() -> dict:
+    q = quota_status(_OPENALEX_HOST)
+    if not q or q.get("remaining") is None:
+        return {"known": False}
+    limit = q.get("limit")
+    return {
+        "known": True,
+        "remaining": q["remaining"],
+        "limit": limit,
+        "reset_in": q.get("reset_in"),
+        "searches_left": q["remaining"] // REQUESTS_PER_SEARCH,
+        "searches_total": (limit // REQUESTS_PER_SEARCH) if limit else None,
+    }
+_UI_THEMES = ("system", "light", "dark")
+
+
+def _error(code: str, message: str = "", **data) -> dict:
+    """Error para la GUI: `code` es lo que el frontend traduce (es/en); `message`
+    es el detalle en espanol, que se muestra tal cual en la interfaz en espanol."""
+    return {"status": "error", "code": code, "message": message, **data}
 
 
 def _paper_to_dict(paper: Paper) -> dict:
@@ -39,12 +91,29 @@ def _paper_to_dict(paper: Paper) -> dict:
         "doc_type": paper.doc_type,
         "open_access": paper.open_access,
         "abstract": paper.abstract,
+        "language": paper.language,
+        "publisher": paper.publisher_lineage[-1] if paper.publisher_lineage else None,
+        "access_status": paper.access_status,
+        "access_label": ACCESS_LABELS.get(paper.access_status or "", None),
+        "access_label_en": access_label(paper.access_status, "en"),
+        "access_url": paper.access_url if is_openable_url(paper.access_url) else None,
+        "explanation": explain(paper.score_breakdown),
+        # El frontend pinta el desglose en el idioma de la interfaz a partir de esto
+        "score_breakdown": paper.score_breakdown,
     }
 
 
 def _config_from_params(params: dict) -> SearchConfig:
     raw_modes = params.get("modes") or ["references", "citations"]
     allowed_doc_types = set(params["allowed_doc_types"]) if params.get("allowed_doc_types") else None
+    language_mode = params.get("language_mode", "any")
+    if language_mode not in ("any", "same", "custom"):
+        raise ValueError(f"modo de idioma desconocido: {language_mode}")
+    languages = None
+    if language_mode == "custom":
+        languages = {c.strip().lower() for c in str(params.get("languages", "")).split(",") if c.strip()}
+        if not languages:
+            raise ValueError("elige al menos un idioma (codigos como es, en)")
     return SearchConfig(
         generations=int(params.get("generations", 2)),
         max_articles=int(params.get("max_articles", 200)),
@@ -54,10 +123,15 @@ def _config_from_params(params: dict) -> SearchConfig:
             topic=float(params.get("weight_topic", 1.0)),
             citations=float(params.get("weight_citations", 0.2)),
             recency=float(params.get("weight_recency", 0.1)),
+            coupling=float(params.get("weight_coupling", 1.0)),
+            keywords=float(params.get("weight_keywords", 0.5)),
         ),
-        relevance_threshold=float(params.get("relevance_threshold", 0.3)),
+        explore_budget=int(params.get("explore_budget", 30)),
+        relevance_threshold=float(params.get("relevance_threshold", 0.15)),
         allowed_doc_types=allowed_doc_types,
         require_open_access=bool(params.get("require_open_access", False)),
+        languages=languages,
+        same_language_as_root=language_mode == "same",
     )
 
 
@@ -71,10 +145,22 @@ def _clean_env_value(value: object) -> str:
     return cleaned
 
 
+def _quote_env_value(value: str) -> str:
+    """Entre comillas dobles: sin ellas, python-dotenv corta el valor en un " #"
+    (lo toma por comentario) -- p.ej. una editorial "Wiley #2 Press"."""
+    return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+
 def save_env_settings(settings: dict, env_path: Path | None = None) -> None:
     """Lee el .env existente (si lo hay), actualiza solo las claves conocidas y
     reescribe -- no toca ninguna otra linea/clave que ya hubiera."""
     settings = {k: _clean_env_value(v) for k, v in settings.items() if k in _ENV_KEYS}
+    if settings.get("UI_LANGUAGE") and settings["UI_LANGUAGE"] not in _UI_LANGUAGES:
+        raise ValueError("idioma de la interfaz no valido")
+    if settings.get("UI_THEME") and settings["UI_THEME"] not in _UI_THEMES:
+        raise ValueError("tema no valido")
+    if "LIBRARY_LINK_TEMPLATE" in settings:
+        settings["LIBRARY_LINK_TEMPLATE"] = validate_library_template(settings["LIBRARY_LINK_TEMPLATE"])
     path = env_path or Path(".env")
     existing_lines = path.read_text(encoding="utf-8").splitlines() if path.exists() else []
 
@@ -84,21 +170,21 @@ def save_env_settings(settings: dict, env_path: Path | None = None) -> None:
         stripped = line.strip()
         key = stripped.split("=", 1)[0].strip() if "=" in stripped and not stripped.startswith("#") else None
         if key in _ENV_KEYS and key in settings:
-            new_lines.append(f"{key}={settings[key]}")
+            new_lines.append(f"{key}={_quote_env_value(settings[key])}")
             written.add(key)
         else:
             new_lines.append(line)
 
     for key in _ENV_KEYS:
         if key in settings and key not in written and settings[key]:
-            new_lines.append(f"{key}={settings[key]}")
+            new_lines.append(f"{key}={_quote_env_value(settings[key])}")
 
     path.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
 
 
 class Api:
-    """Puente js_api de pywebview -- cada metodo publico es llamable desde JS via
-    `pywebview.api.<metodo>(...)`. pywebview despacha cada llamada en su propio
+    """Puente js_api de pywebview -- cada metodo publico (sin _ delante) es
+    llamable desde JS via `pywebview.api.<metodo>(...)`: lo interno va con _. pywebview despacha cada llamada en su propio
     hilo (ver webview/util.py: `Thread(target=_call)`), asi que expand() puede
     tardar sin congelar la ventana -- no hace falta gestionar hilos a mano aqui.
     """
@@ -122,8 +208,12 @@ class Api:
         self._progress: ProgressEvent | None = None
         self._last_activity: float | None = None
         self._cancel_requested = threading.Event()
+        self._last_export_path: Path | None = None
+        # Rutas elegidas por el usuario en el dialogo nativo de guardar: export()
+        # solo escribe en una de ellas, nunca en una ruta que llegue solo de JS.
+        self._chosen_save_paths: set[Path] = set()
 
-    def bind_window(self, window: webview.Window) -> None:
+    def _bind_window(self, window: webview.Window) -> None:
         self._window = window
 
     # -- Pantalla 1 / 1b: identificar el paper padre -------------------------
@@ -141,12 +231,14 @@ class Api:
                 "query": exc.query,
                 "candidates": [_paper_to_dict(p) for p in self._candidates],
             }
-        except (DOIResolutionError, RateLimitedError) as exc:
-            return {"status": "error", "message": str(exc)}
+        except DOIResolutionError as exc:
+            return _error("resolve_failed", str(exc))
+        except RateLimitedError as exc:
+            return _rate_limited(exc)
 
     def confirm_candidate(self, index: int) -> dict:
         if not 0 <= index < len(self._candidates):
-            return {"status": "error", "message": "seleccion invalida"}
+            return _error("invalid_selection", "selección inválida")
         self._root = self._candidates[index]
         return {"status": "resolved", "paper": _paper_to_dict(self._root)}
 
@@ -162,11 +254,11 @@ class Api:
 
     def search(self, params: dict) -> dict:
         if self._root is None:
-            return {"status": "error", "message": "no hay paper padre resuelto todavia"}
+            return _error("no_root", "no hay paper padre resuelto todavía")
         try:
             config = _config_from_params(params)
         except ValueError as exc:
-            return {"status": "error", "message": str(exc)}
+            return _error("invalid_params", str(exc))
 
         install = InstallConfig.from_env()
         semantic_scholar = self._semantic_scholar or SemanticScholarClient(
@@ -175,7 +267,8 @@ class Api:
         self._cancel_requested.clear()
         with self._progress_lock:
             self._progress = ProgressEvent(
-                found=1, max_articles=config.max_articles, generation=0, current_title=None
+                explored=0, planned=planned_expansions(config), candidates=0,
+                generation=0, current_title=None,
             )
             self._last_activity = time.monotonic()
         try:
@@ -190,22 +283,74 @@ class Api:
         except RateLimitedError as exc:
             self._record_progress(
                 ProgressEvent(
-                    found=0, max_articles=config.max_articles, generation=0,
-                    current_title=None, finished=True,
+                    explored=0, planned=planned_expansions(config), candidates=0,
+                    generation=0, current_title=None, finished=True,
                 )
             )
-            return {"status": "error", "message": str(exc)}
+            return _rate_limited(exc)
+        access = self._access_config()
+        annotate_access(self._results, access)
+        with self._progress_lock:
+            candidates = self._progress.candidates if self._progress else len(self._results)
         return {
             "status": "ok",
             "count": len(self._results),
+            "candidates": candidates,
             "cancelled": self._cancel_requested.is_set(),
             "papers": [_paper_to_dict(p) for p in self._results],
+            "publishers": publisher_counts(self._results[1:]),
+            "selected_publishers": sorted(access.publishers),
         }
 
     def _record_progress(self, event: ProgressEvent) -> None:
         with self._progress_lock:
             self._progress = event
             self._last_activity = time.monotonic()
+
+    # -- Acceso institucional ---------------------------------------------------
+
+    @staticmethod
+    def _access_config() -> AccessConfig:
+        install = InstallConfig.from_env()
+        try:
+            return AccessConfig.from_strings(
+                install.library_link_template, install.subscribed_publishers
+            )
+        except ValueError:
+            # Plantilla invalida en un .env editado a mano: se ignora la plantilla
+            # en vez de tumbar la busqueda; Ajustes la marcara al guardar.
+            return AccessConfig.from_strings(None, install.subscribed_publishers)
+
+    def set_publishers(self, publishers: list[str]) -> dict:
+        """Guarda las editoriales marcadas y recalcula el acceso de los resultados
+        ya obtenidos, sin repetir la busqueda."""
+        chosen = {str(p).strip() for p in publishers or [] if str(p).strip()}
+        try:
+            save_env_settings({"SUBSCRIBED_PUBLISHERS": format_publishers(chosen)})
+        except ValueError as exc:
+            return _error("invalid_settings", str(exc))
+        os.environ["SUBSCRIBED_PUBLISHERS"] = format_publishers(chosen)
+        annotate_access(self._results, self._access_config())
+        return {"status": "ok", "papers": [_paper_to_dict(p) for p in self._results]}
+
+    def open_link(self, url: str) -> dict:
+        """Abre un enlace en el navegador del sistema (no dentro de la app). Solo
+        http(s): las URLs de acceso abierto vienen de una API externa."""
+        if not is_openable_url(url):
+            return _error("invalid_link", "enlace no válido")
+        webbrowser.open(url)
+        return {"status": "ok"}
+
+    def test_library_link(self, template: str) -> dict:
+        try:
+            cleaned = validate_library_template(template)
+        except ValueError as exc:
+            return _error("invalid_library_link", str(exc))
+        if not cleaned:
+            return _error("empty_library_link", "escribe primero el enlace")
+        url = library_link(cleaned, TEST_DOI)
+        webbrowser.open(url)
+        return {"status": "ok", "url": url}
 
     def get_progress(self) -> dict:
         """Lo consulta la GUI cada ~0,5 s mientras dura search(). `idle_seconds`
@@ -217,13 +362,19 @@ class Api:
             return {"status": "idle"}
         return {
             "status": "finished" if event.finished else "running",
-            "found": event.found,
-            "max_articles": event.max_articles,
+            "explored": event.explored,
+            "planned": event.planned,
+            "candidates": event.candidates,
             "generation": event.generation,
             "current_title": event.current_title,
             "cancelled": event.cancelled,
             "idle_seconds": round(time.monotonic() - last, 1) if last is not None else 0.0,
         }
+
+    def get_quota(self) -> dict:
+        """Cuota diaria de OpenAlex segun sus propias cabeceras: la GUI la ensena
+        como "busquedas que quedan hoy" y cuando se reinicia."""
+        return quota_summary()
 
     def cancel_search(self) -> dict:
         """Pide parar; search() termina en cuanto acabe el paper que esta
@@ -239,18 +390,43 @@ class Api:
         result = self._window.create_file_dialog(
             webview.FileDialog.SAVE, save_filename=default_name
         )
-        return result[0] if result else None
+        if not result:
+            return None
+        chosen = result if isinstance(result, str) else result[0]
+        self._chosen_save_paths.add(Path(chosen).resolve())
+        return chosen
 
-    def export(self, path: str, format: str, excluded_indices: list[int] | None = None) -> dict:
+    def export(
+        self,
+        path: str,
+        format: str,
+        excluded_indices: list[int] | None = None,
+        lang: str = "es",
+    ) -> dict:
         if not self._results:
-            return {"status": "error", "message": "no hay resultados que exportar"}
+            return _error("nothing_to_export", "no hay resultados que exportar")
+        if Path(path).resolve() not in self._chosen_save_paths:
+            return _error("path_not_chosen", "elige dónde guardar con el botón «Elegir…»")
         excluded = set(excluded_indices or [])
         papers = [p for i, p in enumerate(self._results) if i not in excluded]
         try:
-            write(papers, path, format=format)
+            write(papers, path, format=format, lang=lang if lang in _UI_LANGUAGES else "es")
         except (OSError, ValueError) as exc:
-            return {"status": "error", "message": str(exc)}
-        return {"status": "ok", "path": path, "count": len(papers)}
+            return _error("export_failed", str(exc))
+        self._last_export_path = Path(path)
+        return {"status": "ok", "path": path, "name": Path(path).name, "count": len(papers)}
+
+    def open_export_folder(self) -> dict:
+        """Abre en el explorador la carpeta del ultimo fichero exportado en esta
+        sesion -- nunca una ruta que llegue de JS."""
+        if self._last_export_path is None or not self._last_export_path.parent.is_dir():
+            return _error("no_export_folder", "no hay ninguna exportación todavía")
+        folder = str(self._last_export_path.parent)
+        if sys.platform == "win32":
+            os.startfile(folder)  # noqa: S606 -- carpeta propia, no una orden
+        else:
+            subprocess.Popen(["open" if sys.platform == "darwin" else "xdg-open", folder])
+        return {"status": "ok"}
 
     # -- Ajustes ------------------------------------------------------------
 
@@ -258,17 +434,41 @@ class Api:
         return {
             "contact_email": os.environ.get("CONTACT_EMAIL", ""),
             "semantic_scholar_api_key": os.environ.get("SEMANTIC_SCHOLAR_API_KEY", ""),
+            "library_link_template": os.environ.get("LIBRARY_LINK_TEMPLATE", ""),
+            "ui_language": os.environ.get("UI_LANGUAGE", ""),
+            "ui_theme": os.environ.get("UI_THEME", "") or "system",
         }
 
     def save_settings(self, settings: dict) -> dict:
         try:
             save_env_settings(settings)
         except ValueError as exc:
-            return {"status": "error", "message": str(exc)}
+            return _error("invalid_settings", str(exc))
         for key in _ENV_KEYS:
-            if settings.get(key):
+            if key in settings:
                 os.environ[key] = _clean_env_value(settings[key])
         return {"status": "ok"}
+
+
+def _rate_limited(exc: RateLimitedError) -> dict:
+    return _error("rate_limited", str(exc), source=exc.source, wait_seconds=exc.retry_after)
+
+
+def _bind_pdf_drop(window: webview.Window) -> None:
+    """Soltar un PDF en la ventana: el navegador no da la ruta real del fichero a
+    JS, pero pywebview si a Python (`pywebviewFullPath`). Se la pasamos a la GUI,
+    que la trata igual que si se hubiera elegido con el boton."""
+
+    def on_drop(event: dict) -> None:
+        files = (event.get("dataTransfer") or {}).get("files") or []
+        for file in files:
+            path = file.get("pywebviewFullPath")
+            if path and str(path).lower().endswith(".pdf"):
+                window.evaluate_js(f"window.bibExpres && window.bibExpres.onPdfDropped({json.dumps(path)})")
+                return
+
+    window.dom.document.events.dragover += DOMEventHandler(lambda e: None, True, True, debounce=500)
+    window.dom.document.events.drop += DOMEventHandler(on_drop, True, True)
 
 
 def main() -> None:
@@ -282,8 +482,8 @@ def main() -> None:
         height=720,
         min_size=(720, 560),
     )
-    api.bind_window(window)
-    webview.start()
+    api._bind_window(window)
+    webview.start(_bind_pdf_drop, window)
 
 
 if __name__ == "__main__":

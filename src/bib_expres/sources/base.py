@@ -81,6 +81,55 @@ class ResponseCache:
         self._conn.commit()
 
 
+# ---- cuota de las APIs ----------------------------------------------------------
+# OpenAlex manda en cada respuesta cuanta cuota queda (X-RateLimit-Remaining), el
+# total diario (X-RateLimit-Limit) y en cuantos segundos se reinicia
+# (X-RateLimit-Reset). Se guarda la ultima lectura por host para ensenarla en la GUI:
+# asi el usuario ve que se acerca al limite antes de chocar con el.
+_QUOTA: dict[str, dict] = {}
+_QUOTA_LOCK = threading.Lock()
+
+
+def _header_number(headers, name: str) -> float | None:
+    value = headers.get(name)
+    try:
+        return float(value) if value is not None else None
+    except ValueError:
+        return None
+
+
+def record_quota(host: str, headers, *, exhausted_for: float | None = None) -> None:
+    remaining = 0.0 if exhausted_for is not None else _header_number(headers, "X-RateLimit-Remaining")
+    limit = _header_number(headers, "X-RateLimit-Limit")
+    reset = exhausted_for if exhausted_for is not None else _header_number(headers, "X-RateLimit-Reset")
+    if remaining is None and limit is None:
+        return
+    with _QUOTA_LOCK:
+        previous = _QUOTA.get(host, {})
+        _QUOTA[host] = {
+            "remaining": int(remaining) if remaining is not None else previous.get("remaining"),
+            "limit": int(limit) if limit is not None else previous.get("limit"),
+            "reset_in": reset if reset is not None else previous.get("reset_in"),
+            "at": time.monotonic(),
+        }
+
+
+def quota_status(host: str) -> dict | None:
+    """Ultima cuota conocida de `host`, con la cuenta atras al reinicio ya
+    descontada. None si en esta sesion todavia no se ha hablado con esa API (las
+    respuestas de la cache no gastan cuota ni traen cabeceras)."""
+    with _QUOTA_LOCK:
+        q = dict(_QUOTA[host]) if host in _QUOTA else None
+    if q is None:
+        return None
+    elapsed = time.monotonic() - q.pop("at")
+    if q.get("reset_in") is not None:
+        q["reset_in"] = max(0.0, q["reset_in"] - elapsed)
+        if q["reset_in"] == 0 and q.get("limit"):
+            q["remaining"] = q["limit"]  # ya se ha reiniciado desde la ultima lectura
+    return q
+
+
 class RateLimitedError(Exception):
     """La fuente ha limitado las peticiones y pide esperar demasiado como para
     hacerlo en silencio. No hereda de requests.RequestException a proposito: los
@@ -186,11 +235,14 @@ class SourceClient:
     def _get_respecting_rate_limit(self, url: str, params: dict[str, Any]) -> requests.Response:
         for attempt in range(RATE_LIMIT_RETRIES + 1):
             response = self._session.get(url, params=params, timeout=self.timeout, stream=True)
+            host = urlsplit(url).netloc
             if response.status_code != 429:
+                record_quota(host, response.headers)
                 return response
             wait = _parse_retry_after(response.headers.get("Retry-After"))
             response.close()
             if wait is not None and wait > MAX_RETRY_AFTER_SECONDS:
+                record_quota(host, response.headers, exhausted_for=wait)
                 raise RateLimitedError(urlsplit(url).netloc, wait)
             if attempt < RATE_LIMIT_RETRIES:
                 time.sleep(wait if wait is not None else DEFAULT_RATE_LIMIT_WAIT)

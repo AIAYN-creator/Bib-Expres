@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 
 from bib_expres.gui.app import Api, _config_from_params, _paper_to_dict, save_env_settings
@@ -129,7 +131,7 @@ def test_api_pick_pdf_without_window_returns_none():
 def test_api_pick_pdf_uses_window_dialog():
     window = _FakeWindow(dialog_result=("C:/papers/a.pdf",))
     api = Api()
-    api.bind_window(window)
+    api._bind_window(window)
     assert api.pick_pdf() == "C:/papers/a.pdf"
     assert window.calls[0][1]["file_types"] == ("Archivos PDF (*.pdf)",)
 
@@ -137,7 +139,7 @@ def test_api_pick_pdf_uses_window_dialog():
 def test_api_pick_save_path_uses_window_dialog():
     window = _FakeWindow(dialog_result=("C:/out/bib.bib",))
     api = Api()
-    api.bind_window(window)
+    api._bind_window(window)
     assert api.pick_save_path("bib.bib") == "C:/out/bib.bib"
 
 
@@ -179,10 +181,17 @@ def test_api_export_without_results_errors(tmp_path):
     assert res["status"] == "error"
 
 
+def _choose(api, path):
+    """Simula que el usuario eligio `path` en el dialogo nativo de guardar."""
+    api._bind_window(_FakeWindow(dialog_result=(str(path),)))
+    assert api.pick_save_path() == str(path)
+    return str(path)
+
+
 def test_api_export_writes_file(tmp_path):
     api = Api()
     api._results = [_paper()]
-    path = str(tmp_path / "out.bib")
+    path = _choose(api, tmp_path / "out.bib")
     res = api.export(path, "bibtex")
     assert res["status"] == "ok"
     assert (tmp_path / "out.bib").exists()
@@ -191,7 +200,7 @@ def test_api_export_writes_file(tmp_path):
 def test_api_export_unknown_format_errors(tmp_path):
     api = Api()
     api._results = [_paper()]
-    res = api.export(str(tmp_path / "out.xyz"), "nope")
+    res = api.export(_choose(api, tmp_path / "out.xyz"), "nope")
     assert res["status"] == "error"
 
 
@@ -202,7 +211,7 @@ def test_api_export_excludes_indices(tmp_path):
         _paper(openalex_id="W2", title="Discard me"),
         _paper(openalex_id="W3", title="Keep me too"),
     ]
-    path = str(tmp_path / "out.bib")
+    path = _choose(api, tmp_path / "out.bib")
     res = api.export(path, "bibtex", excluded_indices=[1])
     assert res["status"] == "ok"
     assert res["count"] == 2
@@ -215,7 +224,7 @@ def test_api_export_excludes_indices(tmp_path):
 def test_api_export_without_excluded_indices_keeps_everyone(tmp_path):
     api = Api()
     api._results = [_paper(openalex_id="W1"), _paper(openalex_id="W2")]
-    res = api.export(str(tmp_path / "out.bib"), "bibtex")
+    res = api.export(_choose(api, tmp_path / "out.bib"), "bibtex")
     assert res["count"] == 2
 
 
@@ -225,10 +234,16 @@ def test_api_export_without_excluded_indices_keeps_everyone(tmp_path):
 def test_api_get_and_save_settings(tmp_path, monkeypatch):
     monkeypatch.delenv("CONTACT_EMAIL", raising=False)
     monkeypatch.delenv("SEMANTIC_SCHOLAR_API_KEY", raising=False)
+    monkeypatch.delenv("LIBRARY_LINK_TEMPLATE", raising=False)
+    monkeypatch.delenv("UI_LANGUAGE", raising=False)
+    monkeypatch.delenv("UI_THEME", raising=False)
     monkeypatch.chdir(tmp_path)
 
     api = Api()
-    assert api.get_settings() == {"contact_email": "", "semantic_scholar_api_key": ""}
+    assert api.get_settings() == {
+        "contact_email": "", "semantic_scholar_api_key": "", "library_link_template": "",
+        "ui_language": "", "ui_theme": "system",
+    }
 
     res = api.save_settings(
         {"CONTACT_EMAIL": "me@example.com", "SEMANTIC_SCHOLAR_API_KEY": "abc123"}
@@ -237,6 +252,9 @@ def test_api_get_and_save_settings(tmp_path, monkeypatch):
     assert api.get_settings() == {
         "contact_email": "me@example.com",
         "semantic_scholar_api_key": "abc123",
+        "library_link_template": "",
+        "ui_language": "",
+        "ui_theme": "system",
     }
     assert (tmp_path / ".env").exists()
 
@@ -254,14 +272,14 @@ def test_save_env_settings_preserves_unrelated_lines(tmp_path):
     save_env_settings({"CONTACT_EMAIL": "new@example.com"}, env_path=env_path)
     content = env_path.read_text(encoding="utf-8")
     assert "SOME_OTHER_VAR=keep-me" in content
-    assert "CONTACT_EMAIL=new@example.com" in content
+    assert 'CONTACT_EMAIL="new@example.com"' in content
     assert "old@example.com" not in content
 
 
 def test_save_env_settings_creates_new_file(tmp_path):
     env_path = tmp_path / ".env"
     save_env_settings({"CONTACT_EMAIL": "a@b.com"}, env_path=env_path)
-    assert "CONTACT_EMAIL=a@b.com" in env_path.read_text(encoding="utf-8")
+    assert 'CONTACT_EMAIL="a@b.com"' in env_path.read_text(encoding="utf-8")
 
 
 # -- _config_from_params ----------------------------------------------------------
@@ -282,7 +300,7 @@ def test_config_from_params_doc_type_filter():
 def test_save_env_settings_strips_trailing_newline(tmp_path):
     env = tmp_path / ".env"
     save_env_settings({"SEMANTIC_SCHOLAR_API_KEY": "abc123\n"}, env_path=env)
-    assert env.read_text(encoding="utf-8") == "SEMANTIC_SCHOLAR_API_KEY=abc123\n"
+    assert env.read_text(encoding="utf-8") == 'SEMANTIC_SCHOLAR_API_KEY="abc123"\n'
 
 
 def test_save_env_settings_rejects_injected_lines(tmp_path):
@@ -321,8 +339,9 @@ def test_api_get_progress_finished_after_search():
 
     progress = api.get_progress()
     assert progress["status"] == "finished"
-    assert progress["found"] == res["count"] == 3
-    assert progress["max_articles"] == 50
+    assert res["count"] == 3
+    assert progress["planned"] == 1  # 1 generacion: solo se expande el padre (el fake no fija generation)
+    assert progress["candidates"] == 2
     assert progress["idle_seconds"] >= 0
 
 
@@ -377,6 +396,89 @@ def test_api_new_search_clears_previous_cancel():
     assert res["cancelled"] is False
 
 
+# -- idioma ---------------------------------------------------------------------
+
+
+def test_config_from_params_language_modes():
+    assert _config_from_params({}).languages is None
+    assert _config_from_params({}).same_language_as_root is False
+    assert _config_from_params({"language_mode": "same"}).same_language_as_root is True
+    cfg = _config_from_params({"language_mode": "custom", "languages": "es, en"})
+    assert cfg.languages == {"es", "en"}
+
+
+def test_config_from_params_custom_language_requires_codes():
+    with pytest.raises(ValueError):
+        _config_from_params({"language_mode": "custom", "languages": " "})
+    with pytest.raises(ValueError):
+        _config_from_params({"language_mode": "klingon"})
+
+
+def test_paper_to_dict_includes_language():
+    assert _paper_to_dict(_paper(language="es"))["language"] == "es"
+
+
+# -- acceso institucional ----------------------------------------------------------
+
+
+@pytest.fixture
+def clean_access_env(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    for key in ("LIBRARY_LINK_TEMPLATE", "SUBSCRIBED_PUBLISHERS"):
+        monkeypatch.delenv(key, raising=False)
+    yield
+    for key in ("LIBRARY_LINK_TEMPLATE", "SUBSCRIBED_PUBLISHERS"):
+        monkeypatch.delenv(key, raising=False)
+
+
+def test_api_search_annotates_access_and_lists_publishers(clean_access_env):
+    root = _paper()
+    closed = _paper(
+        openalex_id="R1", doi="10.1/r1", title="Closed", open_access=False,
+        publisher_lineage=["Cell Press", "Elsevier BV"],
+    )
+    api = Api(
+        openalex_client=_FakeOpenAlex(resolve_result=root, references=[closed]),
+        crossref_client=_FakeCrossref(),
+    )
+    api.resolve("10.1/abc")
+    res = api.search(
+        {"generations": "1", "max_articles": "5", "modes": ["references"], "relevance_threshold": "0"}
+    )
+    assert res["publishers"] == [["Elsevier BV", 1]] or res["publishers"] == [("Elsevier BV", 1)]
+    by_title = {p["title"]: p for p in res["papers"]}
+    assert by_title["Closed"]["access_status"] == "unknown"  # sin editoriales marcadas
+    assert by_title["Closed"]["publisher"] == "Elsevier BV"
+
+    res2 = api.set_publishers(["Elsevier BV"])
+    by_title = {p["title"]: p for p in res2["papers"]}
+    assert by_title["Closed"]["access_status"] == "institution"
+    assert 'SUBSCRIBED_PUBLISHERS="Elsevier BV"' in (Path(".env")).read_text(encoding="utf-8")
+
+
+def test_api_save_settings_rejects_non_https_template(clean_access_env):
+    res = Api().save_settings({"LIBRARY_LINK_TEMPLATE": "http://proxy.example.edu/login?url="})
+    assert res["status"] == "error"
+    assert not Path(".env").exists()
+
+
+def test_api_open_link_only_http(monkeypatch):
+    opened = []
+    monkeypatch.setattr("bib_expres.gui.app.webbrowser.open", opened.append)
+    api = Api()
+    assert api.open_link("javascript:alert(1)")["status"] == "error"
+    assert api.open_link("file:///C:/Windows/system.ini")["status"] == "error"
+    assert api.open_link("https://doi.org/10.1/x")["status"] == "ok"
+    assert opened == ["https://doi.org/10.1/x"]
+
+
+def test_api_test_library_link_builds_and_opens(monkeypatch):
+    opened = []
+    monkeypatch.setattr("bib_expres.gui.app.webbrowser.open", opened.append)
+    res = Api().test_library_link("https://proxy.example.edu/login?url=")
+    assert res["status"] == "ok"
+    assert opened[0].startswith("https://proxy.example.edu/login?url=https%3A%2F%2Fdoi.org%2F10.1038")
+
 def test_api_search_reports_rate_limit_as_error():
     from bib_expres.sources.base import RateLimitedError
 
@@ -392,3 +494,140 @@ def test_api_search_reports_rate_limit_as_error():
     assert res["status"] == "error"
     assert "unas 10 horas" in res["message"]
     assert api.get_progress()["status"] == "finished"
+
+
+# -- GUI v3: idioma, tema, codigos de error, carpeta de exportacion ---------------------
+
+
+@pytest.fixture
+def clean_ui_env(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    for key in ("UI_LANGUAGE", "UI_THEME"):
+        monkeypatch.delenv(key, raising=False)
+    yield
+    for key in ("UI_LANGUAGE", "UI_THEME"):
+        monkeypatch.delenv(key, raising=False)
+
+
+def test_save_settings_ui_language_and_theme(clean_ui_env):
+    api = Api()
+    assert api.save_settings({"UI_LANGUAGE": "en", "UI_THEME": "dark"})["status"] == "ok"
+    settings = api.get_settings()
+    assert settings["ui_language"] == "en" and settings["ui_theme"] == "dark"
+
+
+def test_save_settings_rejects_unknown_ui_values(clean_ui_env):
+    res = Api().save_settings({"UI_LANGUAGE": "klingon"})
+    assert res["status"] == "error" and res["code"] == "invalid_settings"
+    assert Api().save_settings({"UI_THEME": "neon"})["code"] == "invalid_settings"
+
+
+def test_errors_carry_codes():
+    api = Api()
+    assert api.search({})["code"] == "no_root"
+    assert api.confirm_candidate(3)["code"] == "invalid_selection"
+    assert api.open_link("javascript:x")["code"] == "invalid_link"
+    assert api.export("x.bib", "bibtex")["code"] == "nothing_to_export"
+    assert api.open_export_folder()["code"] == "no_export_folder"
+
+
+def test_rate_limited_error_has_code_and_wait():
+    from bib_expres.sources.base import RateLimitedError
+
+    root = _paper()
+
+    class _Limited(_FakeOpenAlex):
+        def get_references(self, paper, generation):
+            raise RateLimitedError("api.openalex.org", 7200)
+
+    api = Api(openalex_client=_Limited(resolve_result=root), crossref_client=_FakeCrossref())
+    api.resolve("10.1/abc")
+    res = api.search({"generations": "1", "max_articles": "5", "modes": ["references"]})
+    assert res["code"] == "rate_limited"
+    assert res["wait_seconds"] == 7200 and res["source"] == "api.openalex.org"
+
+
+def test_export_english_excel_and_open_folder(tmp_path, monkeypatch):
+    from openpyxl import load_workbook
+
+    root = _paper()
+    api = Api(openalex_client=_FakeOpenAlex(resolve_result=root), crossref_client=_FakeCrossref())
+    api.resolve("10.1/abc")
+    api.search({"generations": "1", "max_articles": "5", "modes": ["references"]})
+    out = tmp_path / "review.xlsx"
+    res = api.export(_choose(api, out), "xlsx", [], "en")
+    assert res["status"] == "ok" and res["name"] == "review.xlsx"
+    assert load_workbook(out).active["A1"].value == "Title"
+
+    opened = []
+    monkeypatch.setattr("bib_expres.gui.app.os.startfile", opened.append, raising=False)
+    monkeypatch.setattr("bib_expres.gui.app.sys.platform", "win32")
+    assert api.open_export_folder()["status"] == "ok"
+    assert opened == [str(tmp_path)]
+
+
+def test_paper_dict_carries_breakdown_and_english_label():
+    bd = {"tema": 0.5, "citas": 0.1, "recencia": 0.2, "relevancia": 0.4, "conexiones": 1,
+          "palabras_clave": [], "final": 0.5}
+    paper = _paper(access_status="open", score_breakdown=bd)
+    d = _paper_to_dict(paper)
+    assert d["score_breakdown"] == bd
+    assert d["access_label_en"] == "open"
+
+
+# -- endurecimiento de v3 (pruebas-seguridad-v3) ---------------------------------------
+
+
+def test_export_refuses_path_not_chosen_in_dialog(tmp_path):
+    """La pagina no puede hacer que Python escriba en una ruta que el usuario no
+    eligio en el dialogo nativo (p.ej. sobrescribir un fichero cualquiera)."""
+    api = Api()
+    api._results = [_paper()]
+    _choose(api, tmp_path / "elegida.bib")
+    target = tmp_path / "otra.bib"
+    res = api.export(str(target), "bibtex")
+    assert res["status"] == "error" and res["code"] == "path_not_chosen"
+    assert not target.exists()
+
+
+def test_bind_window_is_not_exposed_to_javascript():
+    """pywebview expone a JS todo metodo publico de Api: lo interno va con _."""
+    exposed = {name for name in dir(Api) if not name.startswith("_") and callable(getattr(Api, name))}
+    assert "bind_window" not in exposed
+    assert exposed == {
+        "resolve", "confirm_candidate", "pick_pdf", "search", "set_publishers", "open_link",
+        "test_library_link", "get_progress", "get_quota", "cancel_search", "pick_save_path", "export",
+        "open_export_folder", "get_settings", "save_settings",
+    }
+
+
+def test_env_values_with_hash_survive_a_roundtrip(tmp_path):
+    from dotenv import dotenv_values
+
+    env = tmp_path / ".env"
+    save_env_settings(
+        {
+            "SUBSCRIBED_PUBLISHERS": 'Elsevier BV; Wiley #2 Press; Pub "Quoted"',
+            "LIBRARY_LINK_TEMPLATE": "https://p.edu/login?url=",
+            "CONTACT_EMAIL": "a\\b@example.com",
+        },
+        env_path=env,
+    )
+    values = dotenv_values(env)
+    assert values["SUBSCRIBED_PUBLISHERS"] == 'Elsevier BV; Wiley #2 Press; Pub "Quoted"'
+    assert values["LIBRARY_LINK_TEMPLATE"] == "https://p.edu/login?url="
+    assert values["CONTACT_EMAIL"] == "a\\b@example.com"
+
+
+def test_get_quota_translates_requests_into_searches():
+    from bib_expres.sources import base
+
+    base._QUOTA.clear()
+    try:
+        assert Api().get_quota() == {"known": False}
+        base.record_quota("api.openalex.org", {"X-RateLimit-Remaining": "592", "X-RateLimit-Limit": "1000", "X-RateLimit-Reset": "3600"})
+        q = Api().get_quota()
+        assert q["known"] and q["remaining"] == 592
+        assert q["searches_left"] == 7 and q["searches_total"] == 13
+    finally:
+        base._QUOTA.clear()

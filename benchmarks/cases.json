@@ -1,0 +1,29 @@
+{
+  "_comment": "Cada caso: un paper de partida (seed) y una revision publicada que lo cita. La bibliografia de la revision (segun OpenAlex) es la 'respuesta correcta': lo que un buen snowballing desde el seed deberia encontrar. Para anadir un caso propio basta con otro objeto con los mismos campos.",
+  "cases": [
+    {
+      "id": "transformers",
+      "field": "Machine learning",
+      "seed_doi": "10.48550/arxiv.1706.03762",
+      "seed_label": "Attention Is All You Need (2017)",
+      "review_doi": "10.1016/j.aiopen.2022.10.001",
+      "review_label": "A survey of transformers (AI Open, 2022)"
+    },
+    {
+      "id": "crispr",
+      "field": "Biologia molecular",
+      "seed_doi": "10.1126/science.1225829",
+      "seed_label": "A Programmable Dual-RNA-Guided DNA Endonuclease... (Science, 2012)",
+      "review_doi": "10.1016/j.cell.2014.05.010",
+      "review_label": "Development and Applications of CRISPR-Cas9 for Genome Engineering (Cell, 2014)"
+    },
+    {
+      "id": "graphene",
+      "field": "Fisica de materiales",
+      "seed_doi": "10.1126/science.1102896",
+      "seed_label": "Electric Field Effect in Atomically Thin Carbon Films (Science, 2004)",
+      "review_doi": "10.1103/revmodphys.81.109",
+      "review_label": "The electronic properties of graphene (Rev. Mod. Phys., 2009)"
+    }
+  ]
+}
