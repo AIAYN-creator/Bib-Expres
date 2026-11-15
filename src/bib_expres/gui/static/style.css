@@ -239,3 +239,12 @@ details.adv summary { cursor: pointer; font-size: 13px; color: var(--ink-2); }
 /* ===== Ajustes ===== */
 .settings { max-width: 680px; }
 .settings .panel { margin-bottom: 14px; }
+
+/* ===== Cuota diaria de OpenAlex (cabecera) ===== */
+.quota { font-size: 12px; color: var(--ink-2); background: var(--surface-2); border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px; white-space: nowrap; cursor: default; }
+.quota::before { content: "●"; margin-right: 6px; color: var(--ok); }
+.quota.low { background: var(--warn-soft); color: var(--warn); border-color: transparent; }
+.quota.low::before { color: var(--warn); }
+.quota.out { background: var(--bad-soft); color: var(--bad); border-color: transparent; }
+.quota.out::before { color: var(--bad); }
+@media (max-width: 900px) { .quota { display: none; } }

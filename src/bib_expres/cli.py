@@ -195,6 +195,21 @@ def _print_progress(event: ProgressEvent) -> None:
     sys.stderr.flush()
 
 
+def _print_quota() -> None:
+    from .sources.base import quota_status
+
+    q = quota_status("api.openalex.org")
+    if not q or q.get("remaining") is None:
+        return
+    left = q["remaining"] // 75
+    reset = ""
+    if q.get("reset_in") is not None:
+        hours, minutes = divmod(int(q["reset_in"]) // 60, 60)
+        reset = f" -- se reinicia en {hours} h {minutes} min" if hours else f" -- se reinicia en {minutes} min"
+    total = f"/{q['limit']}" if q.get("limit") else ""
+    print(f"Cuota de OpenAlex hoy: {q['remaining']}{total} peticiones (~{left} busquedas){reset}", file=sys.stderr)
+
+
 def _confirm_title_candidate(query: str, openalex_client: OpenAlexClient) -> Paper | None:
     """Prompt interactivo simple: lista numerada de candidatos, elegir numero o
     cancelar. Nunca se auto-selecciona el primero -- la busqueda por titulo es
@@ -324,6 +339,8 @@ def _run(argv: list[str] | None = None) -> int:
         return 1
 
     print(f"{len(results)} articulos escritos en {args.output}")
+    if not args.quiet:
+        _print_quota()
     return 0
 
 

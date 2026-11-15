@@ -596,7 +596,7 @@ def test_bind_window_is_not_exposed_to_javascript():
     assert "bind_window" not in exposed
     assert exposed == {
         "resolve", "confirm_candidate", "pick_pdf", "search", "set_publishers", "open_link",
-        "test_library_link", "get_progress", "cancel_search", "pick_save_path", "export",
+        "test_library_link", "get_progress", "get_quota", "cancel_search", "pick_save_path", "export",
         "open_export_folder", "get_settings", "save_settings",
     }
 
@@ -617,3 +617,17 @@ def test_env_values_with_hash_survive_a_roundtrip(tmp_path):
     assert values["SUBSCRIBED_PUBLISHERS"] == 'Elsevier BV; Wiley #2 Press; Pub "Quoted"'
     assert values["LIBRARY_LINK_TEMPLATE"] == "https://p.edu/login?url="
     assert values["CONTACT_EMAIL"] == "a\\b@example.com"
+
+
+def test_get_quota_translates_requests_into_searches():
+    from bib_expres.sources import base
+
+    base._QUOTA.clear()
+    try:
+        assert Api().get_quota() == {"known": False}
+        base.record_quota("api.openalex.org", {"X-RateLimit-Remaining": "592", "X-RateLimit-Limit": "1000", "X-RateLimit-Reset": "3600"})
+        q = Api().get_quota()
+        assert q["known"] and q["remaining"] == 592
+        assert q["searches_left"] == 7 and q["searches_total"] == 13
+    finally:
+        base._QUOTA.clear()

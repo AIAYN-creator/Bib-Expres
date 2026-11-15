@@ -36,7 +36,7 @@ from ..resolve import (
     resolve_input,
     search_by_title,
 )
-from ..sources.base import RateLimitedError
+from ..sources.base import RateLimitedError, quota_status
 from ..sources.crossref import CrossrefClient
 from ..sources.openalex import OpenAlexClient
 from ..sources.semantic_scholar import SemanticScholarClient
@@ -51,6 +51,25 @@ _ENV_KEYS = (
     "UI_THEME",
 )
 _UI_LANGUAGES = ("es", "en")
+# Peticiones a OpenAlex de una busqueda por defecto, medidas en validacion-e2e-v3
+# (74 con la cache vacia). Sirve para traducir la cuota a "busquedas que quedan".
+REQUESTS_PER_SEARCH = 75
+_OPENALEX_HOST = "api.openalex.org"
+
+
+def quota_summary() -> dict:
+    q = quota_status(_OPENALEX_HOST)
+    if not q or q.get("remaining") is None:
+        return {"known": False}
+    limit = q.get("limit")
+    return {
+        "known": True,
+        "remaining": q["remaining"],
+        "limit": limit,
+        "reset_in": q.get("reset_in"),
+        "searches_left": q["remaining"] // REQUESTS_PER_SEARCH,
+        "searches_total": (limit // REQUESTS_PER_SEARCH) if limit else None,
+    }
 _UI_THEMES = ("system", "light", "dark")
 
 
@@ -351,6 +370,11 @@ class Api:
             "cancelled": event.cancelled,
             "idle_seconds": round(time.monotonic() - last, 1) if last is not None else 0.0,
         }
+
+    def get_quota(self) -> dict:
+        """Cuota diaria de OpenAlex segun sus propias cabeceras: la GUI la ensena
+        como "busquedas que quedan hoy" y cuando se reinicia."""
+        return quota_summary()
 
     def cancel_search(self) -> dict:
         """Pide parar; search() termina en cuanto acabe el paper que esta

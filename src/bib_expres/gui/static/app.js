@@ -29,6 +29,7 @@
     // Lo que se pinta con datos se vuelve a pintar en el idioma nuevo
     updateGenerationsHint();
     updateEstimate();
+    renderQuota();
     if (currentRoot) renderRootPaper(currentRoot);
     if (lastResults.papers.length) renderResults();
     if (!screens["screen-curation"].classList.contains("hidden")) showCurationCard();
@@ -52,6 +53,37 @@
     if (theme === "system") delete document.documentElement.dataset.theme;
     else document.documentElement.dataset.theme = theme;
     document.querySelectorAll("#settings-theme-seg button").forEach((b) => b.classList.toggle("on", b.dataset.value === theme));
+  }
+
+  // ===== Cuota diaria de OpenAlex ===================================================
+  // Sale de las cabeceras X-RateLimit de OpenAlex (via Python): no hay contador
+  // propio que se desincronice ni que haya que reiniciar a mano.
+
+  let lastQuota = { known: false };
+
+  function fmtReset(seconds) {
+    if (seconds == null) return t("resetUnknown");
+    const m = Math.max(1, Math.round(seconds / 60)), h = Math.floor(m / 60);
+    return h ? t("resetHM", { h, m: m % 60 }) : t("resetM", { m });
+  }
+
+  function renderQuota() {
+    const chip = $("quota-chip");
+    const q = lastQuota;
+    chip.classList.toggle("hidden", !q.known);
+    if (!q.known) return;
+    const reset = fmtReset(q.reset_in);
+    chip.classList.toggle("out", q.remaining <= 0);
+    chip.classList.toggle("low", q.remaining > 0 && q.searches_left <= 2);
+    chip.textContent = q.remaining <= 0 ? t("quotaOut", { reset })
+      : q.searches_total ? t("quotaLeft", { n: q.searches_left, total: q.searches_total })
+      : t("quotaLeftNoTotal", { n: q.searches_left });
+    chip.title = t("quotaTitle", { limit: fmtNum(q.limit || 1000), remaining: fmtNum(q.remaining), reset });
+  }
+
+  async function refreshQuota() {
+    try { lastQuota = await api().get_quota(); } catch (err) { console.error(err); }
+    renderQuota();
   }
 
   // ===== Pantallas y pasos ===========================================================
@@ -142,6 +174,7 @@
     showProgress(t("resolving"));
     try {
       const res = await api().resolve(raw.trim());
+      refreshQuota();
       if (res.status === "resolved") showParamsScreen(res.paper);
       else if (res.status === "needs_confirmation") showConfirmScreen(res.query, res.candidates);
       else { showScreen("screen-input"); setError("input-error", errorText(res)); }
@@ -289,6 +322,7 @@
     try {
       const res = await api().search(collectParams());
       stopProgressPolling();
+      refreshQuota();
       if (res.status === "ok") {
         // "Solo lo que puedo leer" en parametros = la casilla de ocultar en resultados
         $("hide-unreadable").checked = $("param-readable-only").checked;
@@ -350,7 +384,7 @@
     cancelBtn.disabled = false;
     cancelBtn.textContent = t("cancel");
     progressTimer = setInterval(async () => {
-      try { renderProgress(await api().get_progress()); } catch (err) { console.error(err); }
+      try { renderProgress(await api().get_progress()); refreshQuota(); } catch (err) { console.error(err); }
     }, 500);
   }
 
@@ -776,6 +810,8 @@
     applyTheme();
     setGenerations(2);
     applyLanguage();
+    refreshQuota();
+    setInterval(refreshQuota, 60000); // Python descuenta el tiempo hasta el reinicio
     showScreen("screen-input");
   }
 
