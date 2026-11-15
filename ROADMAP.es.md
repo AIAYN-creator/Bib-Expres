@@ -15,6 +15,7 @@ De dónde viene bib_exprés y hacia dónde podría ir. Las notas completas de ca
 | **v2.3.0** | Se siente viva | Barra de progreso con cancelar, exportación a Excel para revisiones bibliográficas, README bilingüe, adiós a los cuelgues silenciosos cuando OpenAlex limita las peticiones. |
 | **v3.0.0** | Encuentra más y explica por qué | Algoritmo nuevo (explorar ancho, elegir al final): recall@200 del 9,9 % al 24 % en revisiones reales, con cada score explicado. Acceso institucional, filtro de idioma, app rediseñada en español e inglés, cuota diaria de OpenAlex a la vista. |
 | **v3.1.0** | Te deja irte | Aviso del sistema cuando una búsqueda termina mientras estás en otra ventana, y moverse libremente entre pantallas ("Nueva búsqueda" tras exportar, pasos y logo clicables). |
+| v3.1.1 | Pulido | El aviso muestra el logo; imagen de vista previa para compartir el enlace del repositorio. |
 
 ## Siguiente: ideas, todavía sin planificar
 
