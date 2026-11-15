@@ -11,6 +11,8 @@
 [![Latest release](https://img.shields.io/github/v/release/AIAYN-creator/Bib-Expres?label=download)](https://github.com/AIAYN-creator/Bib-Expres/releases/latest)
 [![MIT license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
+<img src="docs/media/bib-expres-demo.gif" width="880" alt="bib_exprés in action: drop the Attention Is All You Need PDF, set the search, watch it branch into 1,379 candidates, see why each result is there, swipe to curate, and export an Excel bibliography">
+
 </div>
 
 ## What it does
