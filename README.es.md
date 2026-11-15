@@ -72,6 +72,8 @@ Guías completas: [instalación y `.env`](docs/instalacion.md) · [todos los par
 - **Acceso institucional**: abrir la versión libre o ir **a través del proxy de tu biblioteca**, marcar las editoriales que cubre tu institución y ocultar lo que no puedes leer.
 - **Curación tipo Tinder**: revisa cada candidato con su abstract y decide guardar o descartar con botones, flechas o arrastrando, con deshacer.
 - **Progreso en directo**: papers explorados, candidatos vistos, "última actividad hace X s" y un botón para cancelar quedándote con lo encontrado.
+- **Vete a otra cosa mientras busca**: un aviso del sistema (y el icono de la barra de tareas parpadeando) te dice cuándo ha terminado, si estás en otra ventana.
+- **Muévete con libertad**: "Nueva búsqueda" justo después de exportar, y los pasos de la cabecera y el logo te llevan a cualquier pantalla por la que ya hayas pasado.
 - **Cuota diaria a la vista**: cuántas búsquedas permite todavía hoy la cuota gratuita de OpenAlex, y cuándo se reinicia.
 - **Salida**: BibTeX, RIS, CSL-JSON y **Excel** para revisiones bibliográficas (título, autores, DOI enlazado, tema, palabras clave, relevancia, por qué, acceso y una columna libre para notas).
 - **App de escritorio en español e inglés**, en claro u oscuro.
@@ -108,18 +110,15 @@ La diferencia de bib_exprés: es una herramienta de línea de comandos, librerí
 
 ## Hoja de ruta
 
-Ideas, todavía sin planificar:
-
-- **Listados de revistas de la biblioteca (KBART)**: saber exactamente qué cubre tu biblioteca por revista y año, si las bibliotecas lo ofrecen.
-- **Volver a probar los *topics* de OpenAlex** en lugar de los *concepts* cuando mejore su cobertura (hoy bajan el recall en uno de los tres casos del banco de pruebas).
-- **Más casos en el banco de pruebas**, de otros campos, para ajustar los valores por defecto con más de tres revisiones.
-
-Preguntas abiertas:
-
-- Si compensa firmar el `.exe` (certificado de firma de código) para que Windows deje de avisar.
-- Si la parte de librería/CLI se distribuye por PyPI o solo desde GitHub.
+De dónde viene bib_exprés y hacia dónde podría ir: **[ROADMAP.es.md](ROADMAP.es.md)**. ¿Quieres ayudar? Mira **[CONTRIBUTING.md](CONTRIBUTING.md)**.
 
 ## Historial de versiones
+
+### v3.1.0: un aviso cuando termina la búsqueda, y moverse con libertad entre pantallas
+
+- **Vete a otra cosa mientras busca.** Cuando una búsqueda termina (o se para) y la app no es la ventana que estás mirando, te llega un **aviso del sistema** con el resultado ("Búsqueda terminada · 200 artículos de 1379 candidatos · Attention Is All You Need") y el **icono de la barra de tareas parpadea** hasta que vuelves. En Windows sale con el nombre y el logo de bib_exprés; en macOS y Linux, con las notificaciones de cada sistema. Se puede desactivar, y probar, en Ajustes.
+- **Moverse entre pantallas es natural.** Tras exportar hay un botón **"Nueva búsqueda"** que te lleva directo al inicio con el campo listo. Los **pasos de la cabecera** (Paper, Parámetros, Resultados, Exportar) y el **logo** ahora se pueden pulsar y te llevan a cualquier pantalla por la que ya hayas pasado; tus resultados siguen ahí hasta la siguiente búsqueda.
+- La [hoja de ruta](ROADMAP.es.md) tiene ahora su propia página, y hay un [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ### v3.0.0: un algoritmo explicable que encuentra 2,4 veces más, acceso institucional, filtro de idioma y una app nueva en dos idiomas
 

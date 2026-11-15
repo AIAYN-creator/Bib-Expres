@@ -38,7 +38,7 @@ Y rellena:
 - `CONTACT_EMAIL` — tu email, usado como identificación de buena fe ante OpenAlex/CrossRef (mejora los límites de peticiones, no se publica en ningún sitio).
 - `SEMANTIC_SCHOLAR_API_KEY` — opcional, solo si vas a usar el modo "similares".
 - `LIBRARY_LINK_TEMPLATE` y `SUBSCRIBED_PUBLISHERS` — opcionales: el enlace de acceso remoto de tu biblioteca y las editoriales que cubre tu institución ([guía](acceso-institucional.md)). Lo normal es rellenarlos desde la GUI.
-- `UI_LANGUAGE` (`es` / `en`) y `UI_THEME` (`system` / `light` / `dark`) — los guarda la GUI al cambiarlos; no hace falta tocarlos a mano.
+- `UI_LANGUAGE` (`es` / `en`), `UI_THEME` (`system` / `light` / `dark`) y `UI_NOTIFY` (`on` / `off`) — los guarda la GUI al cambiarlos; no hace falta tocarlos a mano.
 
 Desde la GUI los valores se guardan entre comillas, así que un `#` dentro de un valor (p.ej. en el nombre de una editorial) no se pierde como si fuera un comentario.
 
@@ -73,7 +73,9 @@ Abre una ventana de escritorio (usa el motor web del propio sistema: WebView2 en
 5. **Curación** (opcional): revisar cada candidato con su abstract y guardar o descartar con botones, flechas ← →, arrastrando la tarjeta, y **Z para deshacer**.
 6. **Exportar**: BibTeX, RIS, CSL-JSON o Excel, con un resumen de cuántos van al fichero, y **Abrir carpeta** al terminar.
 
-En la cabecera, **≈ búsquedas que quedan hoy** según la cuota de OpenAlex (ver arriba). En **Ajustes**: idioma, tema, el enlace de tu biblioteca (con un botón para probarlo), el email de contacto y la API key de Semantic Scholar, sin tocar el `.env` a mano.
+Mientras busca puedes irte a otra ventana: al terminar te llega un **aviso del sistema** (en Windows, con el nombre y el logo de bib_exprés) y el icono de la barra de tareas parpadea hasta que vuelves. Se desactiva, y se prueba, en Ajustes. Tras exportar, **"Nueva búsqueda"** te lleva al inicio, y los **pasos de la cabecera y el logo** te llevan a cualquier pantalla por la que ya hayas pasado.
+
+En la cabecera, **≈ búsquedas que quedan hoy** según la cuota de OpenAlex (ver arriba). En **Ajustes**: idioma, tema, el aviso al terminar, el enlace de tu biblioteca (con un botón para probarlo), el email de contacto y la API key de Semantic Scholar, sin tocar el `.env` a mano.
 
 Probada en la ventana nativa real, con el backend real y en los dos idiomas ([ejemplo-v3.md](ejemplo-v3.md)).
 

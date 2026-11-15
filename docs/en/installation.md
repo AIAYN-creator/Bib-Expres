@@ -38,7 +38,7 @@ Then fill in:
 - `CONTACT_EMAIL` — your email, used as a good-faith identification towards OpenAlex/CrossRef (it raises the request limits and is never published).
 - `SEMANTIC_SCHOLAR_API_KEY` — optional, only for "similar" mode.
 - `LIBRARY_LINK_TEMPLATE` and `SUBSCRIBED_PUBLISHERS` — optional: your library's remote-access link and the publishers your institution covers ([guide](institutional-access.md)). Usually filled in from the GUI.
-- `UI_LANGUAGE` (`es` / `en`) and `UI_THEME` (`system` / `light` / `dark`) — saved by the GUI when you change them; no need to touch them by hand.
+- `UI_LANGUAGE` (`es` / `en`), `UI_THEME` (`system` / `light` / `dark`) and `UI_NOTIFY` (`on` / `off`) — saved by the GUI when you change them; no need to touch them by hand.
 
 Values saved from the GUI are quoted, so a `#` inside a value (e.g. in a publisher's name) is not lost as if it were a comment.
 
@@ -73,7 +73,9 @@ It opens a desktop window (using the system's own web engine: WebView2 on Window
 5. **Curation** (optional): review each candidate with its abstract and keep or discard it with buttons, ← → arrow keys or by dragging the card, and **Z to undo**.
 6. **Export**: BibTeX, RIS, CSL-JSON or Excel, with a summary of how many go to the file, and **Open folder** when done.
 
-In the header: **≈ searches left today** according to OpenAlex's quota (see above). In **Settings**: language, theme, your library link (with a button to test it), the contact email and the Semantic Scholar API key, without editing the `.env` by hand.
+While it searches you can switch to another window: when it finishes you get a **system notification** (on Windows, with bib_exprés's name and logo) and the taskbar icon blinks until you come back. Turn it off, or test it, in Settings. After exporting, **"New search"** takes you back to the start, and the **steps in the header and the logo** take you to any screen you've already reached.
+
+In the header: **≈ searches left today** according to OpenAlex's quota (see above). In **Settings**: language, theme, the end-of-search notification, your library link (with a button to test it), the contact email and the Semantic Scholar API key, without editing the `.env` by hand.
 
 Tested in the real native window, with the real backend and in both languages ([v3 example](../ejemplo-v3.md), in Spanish).
 

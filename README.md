@@ -72,6 +72,8 @@ Full guides: [installation and `.env`](docs/en/installation.md) · [every parame
 - **Institutional access**: open the free version or go **through your library's proxy**, tick the publishers your institution covers, and hide what you can't read.
 - **Tinder-style curation**: review each candidate with its abstract and keep or discard it with buttons, arrow keys or by dragging, with undo.
 - **Live progress**: papers explored, candidates seen, "last activity X s ago" and a cancel button that keeps what was found so far.
+- **Walk away while it searches**: a system notification (and a blinking taskbar icon) tells you when the search is done, if you're in another window.
+- **Move freely**: "New search" right after exporting, and the steps in the header and the logo take you back to any screen you've already reached.
 - **Daily quota at a glance**: how many searches OpenAlex's free quota still allows today, and when it resets.
 - **Output**: BibTeX, RIS, CSL-JSON and **Excel** for literature reviews (title, authors, linked DOI, topic, keywords, relevance, why, access and a free column for notes).
 - **A desktop app in English and Spanish**, light or dark.
@@ -108,18 +110,15 @@ What makes bib_exprés different: it is a command-line tool, library and desktop
 
 ## Roadmap
 
-Ideas, not yet planned:
-
-- **Library holdings files (KBART)**: an exact "what my library covers" list per journal and year, if libraries make it available.
-- **Re-check OpenAlex topics** as a replacement for the older concepts once their coverage improves (today they lower recall in one of the three benchmark cases).
-- **More benchmark cases** from other fields, to tune the defaults with more than three reviews.
-
-Open questions:
-
-- Whether signing the `.exe` (code-signing certificate) is worth it so Windows stops warning.
-- Whether the library/CLI part ships on PyPI or only from GitHub.
+Where bib_exprés has been and where it might go: **[ROADMAP.md](ROADMAP.md)**. Want to help? See **[CONTRIBUTING.md](CONTRIBUTING.md)**.
 
 ## Version history
+
+### v3.1.0: a notification when the search is done, and moving freely between screens
+
+- **Walk away while it searches.** When a search finishes (or stops) and the app is not the window you're looking at, you get a **system notification** with the result ("Search finished · 200 articles out of 1,379 candidates · Attention Is All You Need") and the **taskbar icon blinks** until you come back. On Windows it shows with bib_exprés's own name and logo; macOS and Linux use their own notifications. It can be turned off, and tested, in Settings.
+- **Moving between screens feels natural.** After exporting there's a **"New search"** button that takes you straight back to the start with the field ready. The **steps in the header** (Paper, Settings, Results, Export) and the **logo** are now clickable and take you to any screen you've already reached; your results stay there until the next search.
+- The [roadmap](ROADMAP.md) now has its own page, and there's a [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ### v3.0.0: an explainable algorithm that finds 2.4× more, institutional access, language filter and a new bilingual app
 
