@@ -121,6 +121,18 @@ Open questions:
 
 ## Version history
 
+### v3.0.0: an explainable algorithm that finds 2.4× more, institutional access, language filter and a new bilingual app
+
+**Why a major version**: with the same input and settings, the results are not the same as in v2. They are better, and measured.
+
+- **A new algorithm, still no black box.** v2 kept the first good candidates it ran into until the cap was full. v3 explores the same citation graph but **keeps everything it sees and picks at the end**, adding two signals to topical relevance: **connections** (how many of the explored papers point to a candidate) and **shared keywords** with the starting paper. Against the bibliographies of three published reviews, recall@200 goes from **9.9 % to 24.0 %** (CRISPR: 18.6 % → 50 %). Every result explains its score: "Why?" in the app, `--explain` in the CLI, a *Why* column in Excel. The cost: a default search takes about 55 s instead of ~36 s with an empty cache, because it explores everything before picking. Benchmark and experiments in `benchmarks/`.
+- **Filters no longer cut the search short.** Type, open access and language are applied when picking, so a paper you filter out can still lead to others you want.
+- **Language filter**, Google Scholar style: the starting paper's language, a list of languages, or any (`--language`).
+- **Institutional access**: a link to the free version when there is one, or **through your library's proxy** (EZproxy, OpenAthens, OpenURL); tick the publishers your institution covers and hide what you can't read (`--library-link`, `--publishers`, `--accessible-only`). Approximate by design: there is no public source of what a library actually pays for. Guide in [docs/en/institutional-access.md](docs/en/institutional-access.md).
+- **A redesigned desktop app**: the logo's colours, **English or Spanish**, light or dark, steps in the header, drop a PDF on the window, results you can sort and search, undo in curation, an export screen with a summary and "Open folder", and **how many searches OpenAlex's free daily quota still allows**, with when it resets.
+- **Security**: exports can only go to a path chosen in the native save dialog, the page can only call the Python methods it needs, a Content-Security-Policy blocks anything that isn't the app's own, and settings values are quoted so a `#` isn't lost.
+- **Documentation in English** (`docs/en/`) and a demo GIF at the top of the README.
+
 ### v2.3.0: progress bar, Excel export, a bilingual README and no more silent hangs
 
 - **Live progress while searching**: a progress bar with articles found over the cap, the generation and the paper being explored, plus "last activity X s ago" so you can tell a slow search from a stuck one (after 30 s it says the APIs are slow but the search is still running). A **Cancel** button stops the search and keeps what was found so far. The CLI shows the same as a single line on `stderr`; `--quiet` hides it.

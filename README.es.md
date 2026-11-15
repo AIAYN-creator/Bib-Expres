@@ -121,6 +121,29 @@ Preguntas abiertas:
 
 ## Historial de versiones
 
+### v3.0.0: un algoritmo explicable que encuentra 2,4 veces más, acceso institucional, filtro de idioma y una app nueva en dos idiomas
+
+**Por qué es versión mayor**: con la misma entrada y los mismos ajustes, los resultados ya no son los de v2. Son mejores, y está medido.
+
+- **Algoritmo nuevo, sin caja negra.** v2 se quedaba con los primeros candidatos buenos que encontraba hasta llenar el tope. v3 explora el mismo grafo de citas pero **guarda todo lo que ve y elige al final**, sumando a la relevancia temática dos señales: **conexiones** (cuántos de los papers explorados apuntan a un candidato) y **palabras clave en común** con el paper de partida. Contra la bibliografía de tres revisiones publicadas, el recall@200 pasa del **9,9 % al 24,0 %** (CRISPR: 18,6 % → 50 %). Cada resultado explica su score: "¿Por qué?" en la app, `--explain` en la CLI y columna *Por qué* en el Excel. El coste: con la caché vacía, una búsqueda por defecto tarda unos 55 s en lugar de ~36 s, porque explora todo antes de elegir. Banco de pruebas y experimentos en `benchmarks/`.
+- **Los filtros ya no cortan la búsqueda.** Tipo, acceso abierto e idioma se aplican al elegir, así que un paper que filtras puede seguir llevando a otros que sí quieres.
+- **Filtro de idioma**, al estilo Google Scholar: el del paper de partida, una lista de idiomas o cualquiera (`--language`).
+- **Acceso institucional**: enlace a la versión libre cuando la hay, o **a través del proxy de tu biblioteca** (EZproxy, OpenAthens, OpenURL); marca las editoriales que cubre tu institución y oculta lo que no puedes leer (`--library-link`, `--publishers`, `--accessible-only`). Aproximado por diseño, porque no existe una fuente pública de lo que paga de verdad una biblioteca. Guía en [docs/acceso-institucional.md](docs/acceso-institucional.md).
+- **App de escritorio rediseñada**:
+  - los colores del logo, **en español o inglés** y en claro u oscuro;
+  - pasos en la cabecera;
+  - soltar un PDF en la ventana;
+  - resultados que se pueden ordenar y filtrar con una búsqueda;
+  - deshacer en la curación;
+  - pantalla de exportación con resumen y "Abrir carpeta";
+  - **cuántas búsquedas permite todavía la cuota gratuita diaria de OpenAlex**, y cuándo se reinicia.
+- **Seguridad**:
+  - solo se exporta a una ruta elegida en el diálogo nativo de guardar;
+  - la página solo puede llamar a los métodos de Python que necesita;
+  - una Content-Security-Policy bloquea todo lo que no sea de la propia app;
+  - los valores de los ajustes se guardan entre comillas para que no se pierda un `#`.
+- **Documentación en inglés** (`docs/en/`) y un GIF de demostración en la cabecera del README.
+
 ### v2.3.0: barra de progreso, exportación a Excel, README bilingüe y adiós a los cuelgues silenciosos
 
 - **Progreso en directo durante la búsqueda**: barra con artículos encontrados sobre el tope, generación y artículo que se está explorando, y "última actividad hace X s" para distinguir una búsqueda lenta de una colgada (a partir de 30 s avisa de que las APIs están tardando, pero la búsqueda sigue). Un botón **Cancelar** para la búsqueda y se queda con lo encontrado hasta ese momento. La CLI muestra lo mismo en una línea en `stderr`; `--quiet` la oculta.
