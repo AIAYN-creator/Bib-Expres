@@ -114,6 +114,11 @@ Where bib_exprés has been and where it might go: **[ROADMAP.md](ROADMAP.md)**. 
 
 ## Version history
 
+### v3.1.1: the notification now shows the logo
+
+- **Fixed**: on Windows, the end-of-search notification showed bib_exprés's name but not its logo. It relied on the icon registered for the app, which Windows caches or ignores for apps without an installer. The logo now travels inside the notification itself.
+- A preview image for sharing the repository's link (`docs/media/social-preview.png`): the icon, the name and the slogan.
+
 ### v3.1.0: a notification when the search is done, and moving freely between screens
 
 - **Walk away while it searches.** When a search finishes (or stops) and the app is not the window you're looking at, you get a **system notification** with the result ("Search finished · 200 articles out of 1,379 candidates · Attention Is All You Need") and the **taskbar icon blinks** until you come back. On Windows it shows with bib_exprés's own name and logo; macOS and Linux use their own notifications. It can be turned off, and tested, in Settings.

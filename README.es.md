@@ -114,6 +114,11 @@ De dónde viene bib_exprés y hacia dónde podría ir: **[ROADMAP.es.md](ROADMAP
 
 ## Historial de versiones
 
+### v3.1.1: el aviso ya muestra el logo
+
+- **Arreglado**: en Windows, el aviso de fin de búsqueda salía con el nombre de bib_exprés pero sin su logo. Dependía del icono registrado para la app, que Windows guarda en caché o ignora en apps sin instalador. Ahora el logo va dentro de la propia notificación.
+- Una imagen de vista previa para compartir el enlace del repositorio (`docs/media/social-preview.png`): el icono, el nombre y el eslogan.
+
 ### v3.1.0: un aviso cuando termina la búsqueda, y moverse con libertad entre pantallas
 
 - **Vete a otra cosa mientras busca.** Cuando una búsqueda termina (o se para) y la app no es la ventana que estás mirando, te llega un **aviso del sistema** con el resultado ("Búsqueda terminada · 200 artículos de 1379 candidatos · Attention Is All You Need") y el **icono de la barra de tareas parpadea** hasta que vuelves. En Windows sale con el nombre y el logo de bib_exprés; en macOS y Linux, con las notificaciones de cada sistema. Se puede desactivar, y probar, en Ajustes.

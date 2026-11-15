@@ -15,6 +15,7 @@ Where bib_exprés has been, and where it might go. Each released version's full 
 | **v2.3.0** | Feels alive | Live progress bar with cancel, Excel export for literature reviews, bilingual README, no more silent hangs when OpenAlex rate-limits. |
 | **v3.0.0** | Finds more, explains why | New algorithm (explore wide, pick at the end): recall@200 from 9.9 % to 24 % on real reviews, with every score explained. Institutional access, language filter, a redesigned app in English and Spanish, OpenAlex daily quota at a glance. |
 | **v3.1.0** | Lets you walk away | A system notification when a search finishes while you're in another window, and moving freely between screens ("New search" after exporting, clickable steps and logo). |
+| v3.1.1 | Polish | The notification shows the logo; a preview image for sharing the repository's link. |
 
 ## Next: ideas, not yet planned
 
