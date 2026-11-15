@@ -9,7 +9,7 @@
 <body>
 
 <header class="appbar">
-  <div class="brand"><img src="logo.png" alt="">bib_exprés</div>
+  <button class="brand" id="brand-btn" data-i-title="goHome"><img src="logo.png" alt="">bib_exprés</button>
   <nav class="steps" id="steps">
     <span class="step" data-step="1"><span class="n">1</span><span data-i="step1">Paper</span></span>
     <span class="step" data-step="2"><span class="n">2</span><span data-i="step2">Parámetros</span></span>
@@ -221,7 +221,13 @@
       <button id="export-confirm-btn" class="btn primary" data-i="save">Guardar</button>
     </div>
     <p id="export-error" class="error hidden"></p>
-    <div id="export-success" class="success hidden"><span id="export-success-text"></span><button id="open-folder-btn" class="btn ghost small" data-i="openFolder">Abrir carpeta</button></div>
+    <div id="export-success" class="success hidden">
+      <span id="export-success-text"></span>
+      <span class="row">
+        <button id="open-folder-btn" class="btn ghost small" data-i="openFolder">Abrir carpeta</button>
+        <button id="export-new-search-btn" class="btn primary small" data-i="newSearch">Nueva búsqueda →</button>
+      </span>
+    </div>
     <div class="footer-actions"><button id="export-back-btn" class="btn ghost" data-i="back">← Volver</button></div>
   </section>
 
@@ -242,6 +248,8 @@
           <div class="seg" id="settings-theme-seg"><button data-value="system" data-i="themeSystem">Sistema</button><button data-value="light" data-i="themeLight">Claro</button><button data-value="dark" data-i="themeDark">Oscuro</button></div>
         </div>
       </div>
+      <label class="check mt"><input id="settings-notify" type="checkbox"><span data-i="notifyLabel">Avisarme cuando termine una búsqueda si estoy en otra ventana</span></label>
+      <button id="settings-notify-test-btn" class="btn ghost small" data-i="notifyTest">Probar el aviso</button>
     </div>
     <div class="card panel">
       <h3 data-i="library">Mi biblioteca</h3>

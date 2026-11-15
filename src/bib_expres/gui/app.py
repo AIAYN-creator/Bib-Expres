@@ -29,6 +29,7 @@ from ..config import ExpansionMode, InstallConfig, RelevanceWeights, SearchConfi
 from ..expansion import ProgressEvent, expand, planned_expansions
 from ..relevance import explain
 from ..export import write
+from . import notify as sysnotify
 from ..models import Paper
 from ..resolve import (
     DOIResolutionError,
@@ -49,6 +50,7 @@ _ENV_KEYS = (
     "SUBSCRIBED_PUBLISHERS",
     "UI_LANGUAGE",
     "UI_THEME",
+    "UI_NOTIFY",
 )
 _UI_LANGUAGES = ("es", "en")
 # Peticiones a OpenAlex de una busqueda por defecto, medidas en validacion-e2e-v3
@@ -71,6 +73,27 @@ def quota_summary() -> dict:
         "searches_total": (limit // REQUESTS_PER_SEARCH) if limit else None,
     }
 _UI_THEMES = ("system", "light", "dark")
+_UI_NOTIFY = ("on", "off")
+
+# Textos del aviso del sistema (la GUI pasa su idioma).
+_NOTIFY_TEXT = {
+    "es": {
+        "done": "Búsqueda terminada",
+        "done_body": "{count} artículos de {candidates} candidatos · {title}",
+        "cancelled": "Búsqueda cancelada",
+        "failed": "La búsqueda se ha detenido",
+        "test": "Así te avisará bib_exprés",
+        "test_body": "Cuando una búsqueda termine y estés en otra ventana.",
+    },
+    "en": {
+        "done": "Search finished",
+        "done_body": "{count} articles out of {candidates} candidates · {title}",
+        "cancelled": "Search cancelled",
+        "failed": "The search stopped",
+        "test": "This is how bib_exprés will let you know",
+        "test_body": "When a search finishes while you're in another window.",
+    },
+}
 
 
 def _error(code: str, message: str = "", **data) -> dict:
@@ -159,6 +182,8 @@ def save_env_settings(settings: dict, env_path: Path | None = None) -> None:
         raise ValueError("idioma de la interfaz no valido")
     if settings.get("UI_THEME") and settings["UI_THEME"] not in _UI_THEMES:
         raise ValueError("tema no valido")
+    if settings.get("UI_NOTIFY") and settings["UI_NOTIFY"] not in _UI_NOTIFY:
+        raise ValueError("valor de aviso no valido")
     if "LIBRARY_LINK_TEMPLATE" in settings:
         settings["LIBRARY_LINK_TEMPLATE"] = validate_library_template(settings["LIBRARY_LINK_TEMPLATE"])
     path = env_path or Path(".env")
@@ -376,6 +401,33 @@ class Api:
         como "busquedas que quedan hoy" y cuando se reinicia."""
         return quota_summary()
 
+    # -- Aviso al terminar --------------------------------------------------------
+
+    def notify_search_done(self, info: dict) -> dict:
+        """La GUI lo llama al terminar una busqueda si la ventana no tiene el foco.
+        Los numeros y el titulo se recalculan aqui a partir de lo que de verdad se
+        busco: de la pagina solo se toman el idioma y el desenlace."""
+        if os.environ.get("UI_NOTIFY", "on") == "off":
+            return {"status": "ok", "shown": False}
+        info = info or {}
+        text = _NOTIFY_TEXT["en" if info.get("lang") == "en" else "es"]
+        outcome = info.get("outcome")
+        if outcome == "error":
+            title, body = text["failed"], str(info.get("message") or "")
+        else:
+            with self._progress_lock:
+                candidates = self._progress.candidates if self._progress else len(self._results)
+            title = text["cancelled"] if outcome == "cancelled" else text["done"]
+            body = text["done_body"].format(
+                count=len(self._results), candidates=candidates,
+                title=self._root.title if self._root else "",
+            )
+        return {"status": "ok", "shown": sysnotify.notify(title, body)}
+
+    def test_notification(self, lang: str = "es") -> dict:
+        text = _NOTIFY_TEXT["en" if lang == "en" else "es"]
+        return {"status": "ok", "shown": sysnotify.notify(text["test"], text["test_body"])}
+
     def cancel_search(self) -> dict:
         """Pide parar; search() termina en cuanto acabe el paper que esta
         procesando y devuelve lo encontrado hasta ese momento."""
@@ -437,6 +489,7 @@ class Api:
             "library_link_template": os.environ.get("LIBRARY_LINK_TEMPLATE", ""),
             "ui_language": os.environ.get("UI_LANGUAGE", ""),
             "ui_theme": os.environ.get("UI_THEME", "") or "system",
+            "ui_notify": os.environ.get("UI_NOTIFY", "") or "on",
         }
 
     def save_settings(self, settings: dict) -> dict:

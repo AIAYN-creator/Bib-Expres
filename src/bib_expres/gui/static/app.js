@@ -24,6 +24,7 @@
     document.documentElement.lang = lang;
     document.querySelectorAll("[data-i]").forEach((el) => (el.textContent = t(el.dataset.i)));
     document.querySelectorAll("[data-i-ph]").forEach((el) => (el.placeholder = t(el.dataset.iPh)));
+    document.querySelectorAll("[data-i-title]").forEach((el) => (el.title = t(el.dataset.iTitle)));
     document.querySelectorAll(".lang button").forEach((b) => b.classList.toggle("on", b.dataset.lang === lang));
     document.querySelectorAll("#settings-lang-seg button").forEach((b) => b.classList.toggle("on", b.dataset.value === lang));
     // Lo que se pinta con datos se vuelve a pintar en el idioma nuevo
@@ -106,8 +107,50 @@
       const n = Number(el.dataset.step);
       el.classList.toggle("now", n === step);
       el.classList.toggle("done", step > 0 && n < step);
+      el.classList.toggle("reachable", !!stepTarget(n) && id !== "screen-progress");
     });
     document.querySelector(".main").scrollTop = 0;
+  }
+
+  // ===== Navegacion (v3.1) =============================================================
+  // Los pasos de la cabecera y el logo llevan a cualquier pantalla a la que ya se
+  // puede ir; nada se pierde: los resultados siguen ahi hasta la siguiente busqueda.
+  // Mientras busca no se navega (la busqueda sigue corriendo en Python).
+
+  function stepTarget(n) {
+    if (n === 1) return "screen-input";
+    if (n === 2 && currentRoot) return "screen-params";
+    if (n === 3 && lastResults.papers.length) return "screen-results";
+    if (n === 5 && lastResults.papers.length) return "screen-export";
+    return null; // la curacion se empieza desde resultados
+  }
+
+  function goHome() {
+    if (currentScreen === "screen-progress") return;
+    inputRaw.value = "";
+    setError("input-error", "");
+    showScreen("screen-input");
+    inputRaw.focus();
+  }
+
+  document.querySelectorAll(".step").forEach((el) => el.addEventListener("click", () => {
+    const target = stepTarget(Number(el.dataset.step));
+    if (!target || currentScreen === "screen-progress" || target === currentScreen) return;
+    if (target === "screen-input") goHome();
+    else if (target === "screen-export") openExportScreen();
+    else showScreen(target);
+  }));
+
+  $("brand-btn").addEventListener("click", goHome);
+
+  // ===== Aviso al terminar (v3.1) =====================================================
+  // Solo si la ventana no tiene el foco: si estas mirando, no hace falta avisar.
+
+  let notifyOn = true;
+
+  async function notifyIfAway(outcome, message) {
+    if (!notifyOn || document.hasFocus()) return;
+    try { await api().notify_search_done({ outcome, message: message || "", lang }); } catch (err) { console.error(err); }
   }
 
   // ===== Errores ======================================================================
@@ -327,14 +370,17 @@
         // "Solo lo que puedo leer" en parametros = la casilla de ocultar en resultados
         $("hide-unreadable").checked = $("param-readable-only").checked;
         showResultsScreen(res);
+        notifyIfAway(res.cancelled ? "cancelled" : "ok");
       } else {
         showScreen("screen-params");
         setError("params-error", errorText(res));
+        notifyIfAway("error", errorText(res));
       }
     } catch (err) {
       stopProgressPolling();
       showScreen("screen-params");
       setError("params-error", unexpected(err));
+      notifyIfAway("error", t("errUnexpected"));
     }
   });
 
@@ -741,6 +787,8 @@
     }
   });
 
+  $("export-new-search-btn").addEventListener("click", goHome);
+
   $("open-folder-btn").addEventListener("click", async () => {
     try { await api().open_export_folder(); } catch (err) { console.error(err); }
   });
@@ -763,6 +811,8 @@
       $("settings-email").value = s.contact_email || "";
       $("settings-key").value = s.semantic_scholar_api_key || "";
       $("settings-library").value = s.library_link_template || "";
+      notifyOn = s.ui_notify !== "off";
+      $("settings-notify").checked = notifyOn;
     } catch (err) { console.error(err); }
     $("settings-saved").classList.add("hidden");
     applyTheme();
@@ -771,6 +821,18 @@
   });
 
   $("settings-lang-seg").querySelectorAll("button").forEach((b) => b.addEventListener("click", () => setLanguage(b.dataset.value)));
+  $("settings-notify").addEventListener("change", async (e) => {
+    notifyOn = e.target.checked;
+    try { await api().save_settings({ UI_NOTIFY: notifyOn ? "on" : "off" }); } catch (err) { console.error(err); }
+  });
+
+  $("settings-notify-test-btn").addEventListener("click", async () => {
+    try {
+      const res = await api().test_notification(lang);
+      flash(res.shown ? t("notifyTested") : t("notifyFailed"), !res.shown);
+    } catch (err) { flash(unexpected(err), true); }
+  });
+
   $("settings-theme-seg").querySelectorAll("button").forEach((b) => b.addEventListener("click", async () => {
     theme = b.dataset.value;
     applyTheme();
@@ -806,6 +868,7 @@
       const s = await api().get_settings();
       if (s.ui_language === "es" || s.ui_language === "en") lang = s.ui_language;
       if (["system", "light", "dark"].includes(s.ui_theme)) theme = s.ui_theme;
+      notifyOn = s.ui_notify !== "off";
     } catch (err) { console.error(err); }
     applyTheme();
     setGenerations(2);

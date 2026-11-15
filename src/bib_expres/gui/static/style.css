@@ -248,3 +248,11 @@ details.adv summary { cursor: pointer; font-size: 13px; color: var(--ink-2); }
 .quota.out { background: var(--bad-soft); color: var(--bad); border-color: transparent; }
 .quota.out::before { color: var(--bad); }
 @media (max-width: 900px) { .quota { display: none; } }
+
+/* ===== v3.1: navegacion desde la cabecera ===== */
+button.brand { border: 0; background: none; padding: 4px 6px; margin-left: -6px; border-radius: 10px; color: var(--ink); cursor: pointer; }
+button.brand:hover { background: var(--surface-2); }
+.step.reachable { cursor: pointer; }
+.step.reachable:not(.now):hover { background: var(--surface-2); color: var(--ink); }
+.step:not(.reachable):not(.now) { cursor: default; }
+#export-success .row { gap: 8px; }

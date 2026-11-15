@@ -237,12 +237,13 @@ def test_api_get_and_save_settings(tmp_path, monkeypatch):
     monkeypatch.delenv("LIBRARY_LINK_TEMPLATE", raising=False)
     monkeypatch.delenv("UI_LANGUAGE", raising=False)
     monkeypatch.delenv("UI_THEME", raising=False)
+    monkeypatch.delenv("UI_NOTIFY", raising=False)
     monkeypatch.chdir(tmp_path)
 
     api = Api()
     assert api.get_settings() == {
         "contact_email": "", "semantic_scholar_api_key": "", "library_link_template": "",
-        "ui_language": "", "ui_theme": "system",
+        "ui_language": "", "ui_theme": "system", "ui_notify": "on",
     }
 
     res = api.save_settings(
@@ -255,6 +256,7 @@ def test_api_get_and_save_settings(tmp_path, monkeypatch):
         "library_link_template": "",
         "ui_language": "",
         "ui_theme": "system",
+        "ui_notify": "on",
     }
     assert (tmp_path / ".env").exists()
 
@@ -596,7 +598,7 @@ def test_bind_window_is_not_exposed_to_javascript():
     assert "bind_window" not in exposed
     assert exposed == {
         "resolve", "confirm_candidate", "pick_pdf", "search", "set_publishers", "open_link",
-        "test_library_link", "get_progress", "get_quota", "cancel_search", "pick_save_path", "export",
+        "test_library_link", "get_progress", "get_quota", "notify_search_done", "test_notification", "cancel_search", "pick_save_path", "export",
         "open_export_folder", "get_settings", "save_settings",
     }
 
@@ -631,3 +633,50 @@ def test_get_quota_translates_requests_into_searches():
         assert q["searches_left"] == 7 and q["searches_total"] == 13
     finally:
         base._QUOTA.clear()
+
+
+# -- v3.1: aviso al terminar --------------------------------------------------------
+
+
+@pytest.fixture
+def captured_notifications(monkeypatch):
+    sent = []
+    monkeypatch.setattr("bib_expres.gui.app.sysnotify.notify", lambda title, body: sent.append((title, body)) or True)
+    monkeypatch.delenv("UI_NOTIFY", raising=False)
+    return sent
+
+
+def test_notify_search_done_uses_real_numbers_not_the_page(captured_notifications):
+    root = _paper(title="Attention Is All You Need")
+    api = Api(openalex_client=_FakeOpenAlex(resolve_result=root), crossref_client=_FakeCrossref())
+    api.resolve("10.1/abc")
+    api.search({"generations": "1", "max_articles": "5", "modes": ["references"]})
+    # la pagina no decide los numeros ni el titulo: se ignoran
+    res = api.notify_search_done({"outcome": "ok", "lang": "en", "count": 999, "title": "<script>"})
+    assert res["shown"] is True
+    title, body = captured_notifications[0]
+    assert title == "Search finished"
+    assert body.startswith("1 articles out of") and body.endswith("Attention Is All You Need")
+    assert "999" not in body and "<script>" not in body
+
+
+def test_notify_search_done_respects_setting(captured_notifications, monkeypatch):
+    monkeypatch.setenv("UI_NOTIFY", "off")
+    assert Api().notify_search_done({"outcome": "ok"})["shown"] is False
+    assert captured_notifications == []
+
+
+def test_notify_error_and_test_notification(captured_notifications):
+    api = Api()
+    api.notify_search_done({"outcome": "error", "lang": "es", "message": "OpenAlex ha limitado..."})
+    api.test_notification("en")
+    assert captured_notifications[0] == ("La búsqueda se ha detenido", "OpenAlex ha limitado...")
+    assert captured_notifications[1][0] == "This is how bib_exprés will let you know"
+
+
+def test_ui_notify_setting_is_validated(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("UI_NOTIFY", raising=False)
+    assert Api().save_settings({"UI_NOTIFY": "sometimes"})["code"] == "invalid_settings"
+    assert Api().save_settings({"UI_NOTIFY": "off"})["status"] == "ok"
+    monkeypatch.delenv("UI_NOTIFY", raising=False)
