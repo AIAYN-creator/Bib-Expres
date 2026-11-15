@@ -44,12 +44,18 @@ def _clip(text: str) -> str:
     return text if len(text) <= MAX_TEXT else text[: MAX_TEXT - 1] + "…"
 
 
-def toast_xml(title: str, body: str) -> str:
-    """XML de la notificacion de Windows, con todo el texto escapado."""
+def toast_xml(title: str, body: str, logo: Path | None = None) -> str:
+    """XML de la notificacion de Windows, con todo el texto escapado. El logo va
+    DENTRO del aviso (appLogoOverride): fiarse solo del icono registrado no basta,
+    porque Windows lo guarda en cache o lo ignora y el aviso salia sin logo."""
+    image = ""
+    if logo is not None:
+        image = f'<image placement="appLogoOverride" src="{escape(logo.as_uri(), {chr(34): "&quot;"})}"/>'
     return (
         '<toast><visual><binding template="ToastGeneric">'
         f"<text>{escape(_clip(title))}</text>"
         f"<text>{escape(_clip(body))}</text>"
+        f"{image}"
         "</binding></visual></toast>"
     )
 
@@ -63,20 +69,30 @@ def _register_windows_app_id() -> None:
     (HKCU, sin permisos de administrador), para que el aviso salga con su nombre y
     su logo en vez de como "Windows PowerShell". Es el registro estandar de una app
     de escritorio sin instalador; solo toca la clave de bib_exprés."""
-    import shutil
     import winreg
 
     key_path = rf"Software\Classes\AppUserModelId\{APP_ID}"
     with winreg.CreateKey(winreg.HKEY_CURRENT_USER, key_path) as key:
         winreg.SetValueEx(key, "DisplayName", 0, winreg.REG_SZ, APP_NAME)
-        logo = stable_logo_path()
-        if not logo.exists() and logo_path().exists():
-            # En el .exe, static/ vive en una carpeta temporal que se borra al cerrar:
-            # el icono de la notificacion necesita una copia que no desaparezca.
-            logo.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(logo_path(), logo)
-        if logo.exists():
+        logo = ensure_stable_logo()
+        if logo is not None:
             winreg.SetValueEx(key, "IconUri", 0, winreg.REG_SZ, str(logo))
+
+
+def ensure_stable_logo() -> Path | None:
+    """Copia el logo a una ruta que no desaparece. En el .exe, static/ vive en una
+    carpeta temporal que se borra al cerrar, y el aviso puede mostrarse despues."""
+    import shutil
+
+    logo = stable_logo_path()
+    try:
+        source = logo_path()
+        if source.exists() and (not logo.exists() or logo.stat().st_size != source.stat().st_size):
+            logo.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(source, logo)
+    except OSError:
+        pass
+    return logo if logo.exists() else None
 
 
 def stable_logo_path() -> Path:
@@ -84,8 +100,8 @@ def stable_logo_path() -> Path:
     return Path(base) / "bib_expres" / "logo.png"
 
 
-def windows_command(title: str, body: str) -> tuple[list[str], dict[str, str]]:
-    env = dict(os.environ, BIBEXPRES_TOAST_XML=toast_xml(title, body), BIBEXPRES_TOAST_APPID=APP_ID)
+def windows_command(title: str, body: str, logo: Path | None = None) -> tuple[list[str], dict[str, str]]:
+    env = dict(os.environ, BIBEXPRES_TOAST_XML=toast_xml(title, body, logo), BIBEXPRES_TOAST_APPID=APP_ID)
     cmd = ["powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", _PS_SCRIPT]
     return cmd, env
 
@@ -132,7 +148,7 @@ def notify(title: str, body: str) -> bool:
                 _register_windows_app_id()
             except OSError:
                 pass  # sin registro sale igual, solo que sin nombre ni logo propios
-            cmd, env = windows_command(title, body)
+            cmd, env = windows_command(title, body, ensure_stable_logo())
             subprocess.Popen(cmd, env=env, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             flash_taskbar()

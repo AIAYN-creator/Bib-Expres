@@ -42,3 +42,24 @@ def test_notify_never_raises(monkeypatch):
 
     monkeypatch.setattr(notify.subprocess, "Popen", boom)
     assert notify.notify("t", "b") is False
+
+
+def test_toast_carries_the_logo_inside(tmp_path):
+    logo = tmp_path / "carpeta con espacios & raro" / "logo.png"
+    xml_text = notify.toast_xml("t", "b", logo)
+    doc = xml.dom.minidom.parseString(xml_text)
+    images = doc.getElementsByTagName("image")
+    assert len(images) == 1
+    assert images[0].getAttribute("placement") == "appLogoOverride"
+    assert images[0].getAttribute("src") == logo.as_uri()
+
+
+def test_toast_without_logo_has_no_image():
+    assert "<image" not in notify.toast_xml("t", "b")
+
+
+def test_stable_logo_is_copied(tmp_path, monkeypatch):
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+    logo = notify.ensure_stable_logo()
+    assert logo == tmp_path / "bib_expres" / "logo.png"
+    assert logo.read_bytes() == notify.logo_path().read_bytes()
